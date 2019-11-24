@@ -1,5 +1,9 @@
 import macros, tables, os, strutils
 
+#
+# @TODO: rewrite without dependencies.  Use ints instead of Param_Kind, and seq instead of tables.
+#
+
 const
     TYPE_NAME = "Options"
     TYPE_PRESENT_NAME = "Options_Present"
@@ -63,7 +67,7 @@ when DEBUG:
         echo ""
 
 
-type Param_Kind = enum
+type Param_Kind* = enum
     param_undefined,
     param_int,
     param_i8,
@@ -664,9 +668,3 @@ when DEBUG:
 
     prettify("Options", parsed_params, true)
     prettify("Present", is_set.repr)
-
-
-dump_tree:
-    block:
-        name = "Iain"
-        hello:string
