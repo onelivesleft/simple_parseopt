@@ -11,10 +11,16 @@ const
     PROC_NAME = "parse"
     ARGUMENTS_NAME = "arguments"
 
+when isMainModule:
+    const DEBUG = true
+else:
+    const DEBUG = false
+
 var
     dash_denotes_param = true
     slash_denotes_param = true
     parameters_are_unique = true
+    quit_on_error = true
 
 proc allow_dash*(use = true) =
     dash_denotes_param = use
@@ -24,6 +30,37 @@ proc allow_slash*(use = true) =
 
 proc allow_repetition*(allow = true) =
     parameters_are_unique = not allow
+
+proc allow_errors(allow = true) =
+    quit_on_error = not allow
+
+
+when DEBUG:
+    var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
+    proc prettify[T](title: string, data: T, new_section = false) =
+        if new_section:
+            echo "--------------"
+        echo title
+        let s = $data
+        var indenting = false
+        for output in s[1 ..< ^1].strip.replace("[", "").replace("]", "").split(','):
+            var line = output.strip()
+            if line.ends_with("\"") and " = 0" in line:
+                let start = line.find(" = 0")
+                let skip = line.find("\"")
+                line = line[0 ..< start + 3] & line[skip ..< ^0]
+            if line.starts_with(ARGUMENTS_NAME & ": @"):
+                line = line[line.find("\"") ..< ^0]
+                indenting = true
+                echo "arguments:"
+            if indenting:
+                if line.starts_with("\""):
+                    line = "  " & line
+                else:
+                    indenting = false
+            if line != "":
+                echo line
+        echo ""
 
 
 type Param_Kind = enum
@@ -43,7 +80,8 @@ type Param_Kind = enum
     param_f64,
     param_char,
     param_string,
-    param_bool
+    param_bool,
+    param_seq
 
 type Param = object
     name: string
@@ -66,6 +104,7 @@ type Param = object
     of param_char:         char_value: char
     of param_string:       string_value: string
     of param_bool:         bool_value: bool
+    of param_seq:          seq_value: seq[string]
 
 
 proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node): (Param, string) =
@@ -89,6 +128,7 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
     of param_char:    param = Param(name: name, kind: param_char,   char_value:   cast[char](value_node.int_val))
     of param_string:  param = Param(name: name, kind: param_string, string_value: value_node.str_val)
     of param_bool:    param = Param(name: name, kind: param_bool,   bool_value:   value_node.str_val == "true")
+    of param_seq:     param = Param(name: name, kind: param_seq,    seq_value:    @[value_node.str_val])
     return (param, name)
 
 
@@ -114,6 +154,7 @@ proc kind_from_lit(lit: Nim_Node): Param_Kind =
 proc ident_from_kind(kind: Param_Kind): Nim_Node =
     case kind
     of param_undefined:    return nil
+    of param_seq:          return nil
     of param_int:          return ident("int")
     of param_i8:           return ident("int8")
     of param_i16:          return ident("int16")
@@ -130,27 +171,6 @@ proc ident_from_kind(kind: Param_Kind): Nim_Node =
     of param_char:         return ident("char")
     of param_string:       return ident("string")
     of param_bool:         return ident("bool")
-
-
-proc string_from_kind(kind: Param_Kind): string =
-    case kind
-    of param_undefined:    return ""
-    of param_int:          return "int"
-    of param_i8:           return "int8"
-    of param_i16:          return "int16"
-    of param_i32:          return "int32"
-    of param_i64:          return "int64"
-    of param_uint:         return "uint"
-    of param_u8:           return "uint8"
-    of param_u16:          return "uint16"
-    of param_u32:          return "uint32"
-    of param_u64:          return "uint64"
-    of param_float:        return "float"
-    of param_f32:          return "float32"
-    of param_f64:          return "float64"
-    of param_char:         return "char"
-    of param_string:       return "string"
-    of param_bool:         return "bool"
 
 
 proc kind_from_ident(ident: Nim_node): Param_Kind =
@@ -178,6 +198,7 @@ proc kind_from_ident(ident: Nim_node): Param_Kind =
 proc value_node_from_param(param: Param): Nim_Node =
     case param.kind:
     of param_undefined: return nil
+    of param_seq:       return nil
     of param_int:       return new_int_lit_node(param.int_value)
     of param_i8:        return new_int_lit_node(param.i8_value)
     of param_i16:       return new_int_lit_node(param.i16_value)
@@ -278,7 +299,7 @@ macro parse_options*(body: untyped): untyped =
     param_type_node[0][2].add new_nim_node(nnk_bracket_expr)
     param_type_node[0][2][0].add ident("init_table")
     param_type_node[0][2][0].add ident("string")
-    param_type_node[0][2][0].add ident("string")
+    param_type_node[0][2][0].add ident("Param_Kind")
 
     var offset_node = new_nim_node(nnk_block_stmt)
     offset_node.add new_empty_node()
@@ -294,19 +315,14 @@ macro parse_options*(body: untyped): untyped =
     var proc_node = quote do:
         proc `proc_name`(options: var `type_name`, present: var `present_type_name`): (`type_name`, `present_type_name`) =
 
-            echo "----------"
-            echo " Before:"
-            echo "----------"
-            echo ""
-            echo options.repr
-            echo present.repr
-            echo "----------"
-            echo ""
-            echo ""
+            when DEBUG:
+                prettify("Options", options.repr, true)
+                prettify("Present", present.repr)
 
             template parse_error(err: string) =
                 echo err
-                quit(1)
+                if quit_on_error:
+                    quit(1)
 
             proc is_present(address: ptr `present_type_name`, name: string): bool =
                 let field = cast[ptr bool](cast[uint](address) + `param_present_offset`[name])
@@ -316,27 +332,132 @@ macro parse_options*(body: untyped): untyped =
                 let field = cast[ptr bool](cast[uint](address) + `param_present_offset`[name])
                 field[] = true
 
+            proc int_from_string[T](s: string): (T, bool) =
+                try:
+                    result = (cast[T](parse_biggest_int(s)), true)
+                except:
+                    return (cast[T](0), false)
+
+            proc uint_from_string[T](s: string): (T, bool) =
+                try:
+                    result = (cast[T](parse_biggest_uint(s)), true)
+                except:
+                    return (cast[T](0), false)
+
+            proc float_from_string[T](s: string): (T, bool) =
+                try:
+                    result = (cast[T](parse_float(s)), true)
+                except:
+                    return (cast[T](0), false)
+
             proc set_value(address: ptr `type_name`, name: string, value: string = ""): bool =
                 let kind = `param_type`[name]
                 case kind
-                of "string":
+                of param_string:
                     let field = cast[ptr string](cast[uint](address) + `param_offset`[name])
                     field[] = value
                     return true
-                of "bool":
+                of param_bool:
                     let field = cast[ptr bool](cast[uint](address) + `param_offset`[name])
                     field[] = not field[]
                     return true
-                else:
+                of param_int:
+                    let (parsed_value, success) = int_from_string[int](value)
+                    if success:
+                        let field = cast[ptr int](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_i8:
+                    let (parsed_value, success) = int_from_string[int8](value)
+                    if success:
+                        let field = cast[ptr int8](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_i16:
+                    let (parsed_value, success) = int_from_string[int16](value)
+                    if success:
+                        let field = cast[ptr int16](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_i32:
+                    let (parsed_value, success) = int_from_string[int32](value)
+                    if success:
+                        let field = cast[ptr int32](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_i64:
+                    let (parsed_value, success) = int_from_string[int64](value)
+                    if success:
+                        let field = cast[ptr int64](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_uint:
+                    let (parsed_value, success) = uint_from_string[uint](value)
+                    if success:
+                        let field = cast[ptr uint](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_u8:
+                    let (parsed_value, success) = uint_from_string[uint8](value)
+                    if success:
+                        let field = cast[ptr uint8](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_u16:
+                    let (parsed_value, success) = uint_from_string[uint16](value)
+                    if success:
+                        let field = cast[ptr uint16](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_u32:
+                    let (parsed_value, success) = uint_from_string[uint32](value)
+                    if success:
+                        let field = cast[ptr uint32](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_u64:
+                    let (parsed_value, success) = uint_from_string[uint64](value)
+                    if success:
+                        let field = cast[ptr uint64](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_float:
+                    let (parsed_value, success) = float_from_string[float](value)
+                    if success:
+                        let field = cast[ptr float](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_f32:
+                    let (parsed_value, success) = float_from_string[float32](value)
+                    if success:
+                        let field = cast[ptr float32](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_f64:
+                    let (parsed_value, success) = float_from_string[float64](value)
+                    if success:
+                        let field = cast[ptr float64](cast[uint](address) + `param_offset`[name])
+                        field[] = parsed_value
+                    return success
+                of param_char:
+                    if value.len != 1: return false
+                    let field = cast[ptr char](cast[uint](address) + `param_offset`[name])
+                    field[] = value[0]
+                    return true
+                of param_undefined:
+                    return false
+                of param_seq:
                     return false
 
             var
                 awaiting_value = false
                 awaiting_value_for = ""
 
-#            let words:seq[string] = @["-name", "bar", "-toggle", "-toggle"]
-#            for word in words:
-            for word in command_line_params():
+            when DEBUG:
+                let words:seq[string] = parse_cmd_line(DEBUG_ARGS)
+            else:
+                let words:seq[string] = command_line_params()
+            for word in words:
                 if (dash_denotes_param and word.starts_with("-")) or (slash_denotes_param and word.starts_with("/")):
                     if awaiting_value:
                         parse_error("Expected value for: " & awaiting_value_for)
@@ -346,7 +467,7 @@ macro parse_options*(body: untyped): untyped =
                     if parameters_are_unique and is_present(addr present, name):
                         parse_error("Parameter already set: " & word)
 
-                    if `param_type`[name] == "bool":
+                    if `param_type`[name] == param_bool:
                         if set_value(addr options, name):
                             set_present(addr present, name)
                         else:
@@ -360,7 +481,11 @@ macro parse_options*(body: untyped): untyped =
                             set_present(addr present, awaiting_value_for)
                             awaiting_value = false
                         else:
-                            parse_error("Failed to set " & word & ": this should not happen!")
+                            parse_error("Could not parse value for: " & word)
+                    else:
+                        let field = cast[ptr seq[string]](cast[uint](addr options) + `param_offset`[`ARGUMENTS_NAME`])
+                        field[].add word
+
 
             if awaiting_value:
                 parse_error("Expected value for: " & awaiting_value_for)
@@ -444,7 +569,7 @@ macro parse_options*(body: untyped): untyped =
         var_node.last.add ident(name)
         var_node.last.add value_node.copy_nim_node
 
-    template add_offsets(name: string) =
+    template add_offset(name: string) =
         offset_node.add nnk_asgn.new_tree(
                 nnk_bracket_expr.new_tree(
                     ident(OFFSET_NAME),
@@ -464,6 +589,7 @@ macro parse_options*(body: untyped): untyped =
                             ident("addr"),
                             ident(VAR_NAME)))))
 
+    template add_present_offset(name: string) =
         offset_node.add nnk_asgn.new_tree(
             nnk_bracket_expr.new_tree(
                 ident(OFFSET_PRESENT_NAME),
@@ -488,98 +614,40 @@ macro parse_options*(body: untyped): untyped =
         offset_node.last.add new_nim_node(nnk_bracket_expr)
         offset_node.last[0].add ident(VAR_TYPE_NAME)
         offset_node.last[0].add new_str_lit_node(name)
-        offset_node.last.add new_str_lit_node(string_from_kind(kind))
+        offset_node.last.add ident($kind)
 
-    add_type ARGUMENTS_NAME, param_string
+    # arguments list for loose args
+    type_node.add nnk_ident_defs.new_tree(
+        ident(ARGUMENTS_NAME),
+        nnk_bracket_expr.new_tree(
+            ident("seq"),
+            ident("string")),
+        new_empty_node())
+    add_offset ARGUMENTS_NAME
 
     for name in params_in_order:
         let param = params[name]
         add_type name, param.kind
         add_var name, value_node_from_param(param)
-        add_offsets name
+        add_offset name
+        add_present_offset name
         add_type_lookup name, param.kind
 
-#    echo result.repr
 
+when DEBUG:
+    allow_repetition()
+    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
 
-#type Foo = object
-#    a: int
-#    b: string
-#    c: uint64
-#
-#var foo: Foo
-#
-#let offset = alignof(foo.b)
-#let address:uint = cast[uint](addr foo)
-#let fieldPtr = cast[ptr string](address + offset.uint)
-#
-#fieldPtr[] = "Iain"
-#
-#echo foo.repr
+    var (parsed_params, is_set) = parse_options:
+        name = "Default Name"
+        toggle = false
+        letter = 'a'
+        age = 1
+        here = true
+        there = false
+        big:float64 = 1.1
+        small:float = 2.2
+        flat:uint = 2
 
-#dump_tree:
-#    type O = object
-#        name: string
-#        toggle: bool
-#    var o = O()
-#    var t = init_table[string, uint]()
-#    t["name"] = cast[uint](addr o.name) - cast[uint](addr o)
-#    t["toggle"] = cast[uint](addr o.toggle) - cast[uint](addr o)
-
-#dump_tree:
-#    a["name"] = param_int
-
-#dump_tree:
-#    var a = init_table[string, int]()
-#    var b = init_table[string, int]()
-
-allow_repetition(true)
-
-var (parsed_params, is_set) = parse_options:
-    name = "Iain"
-    toggle = true
-
-#    letter = 'a'
-#    age = 1
-#    here = true
-#    there = false
-#    big:float64 = 1.1
-#    small:float = 2.2
-#    flat:uint = 2
-
-
-#    name = "Hello" {. alias("n", "namu", "id") .}
-#    age = 1 {.hi, there(3).}
-#    big:float64 = 1.1
-#    small:float = 2.2 {. bob .}
-echo "----------"
-echo " After:"
-echo "----------"
-echo ""
-echo parsed_params.repr
-echo is_set.repr
-echo "----------"
-
-#dump_tree:
-##block:
-#    type O = object
-#        name: string
-#        age: int
-#    var o = O()
-#    var t = init_table[string, int]()
-#    t["name"] = alignof(o.name)
-#    t["age"] = alignof(o.age)
-
-    #let address:uint = cast[uint](addr foo)
-    #let fieldPtr = cast[ptr string](address + offset.uint)
-#    type P = object
-#        name: bool
-#    proc foo(o: var O, p: var P): (O, P) =
-#        o.name = "foo"
-#        p.name = true
-#        return (o, p)
-#    var o = O(name: "bar")
-#    var p = P()
-#    foo(o, p)
-
-#echo x, y
+    prettify("Options", parsed_params, true)
+    prettify("Present", is_set.repr)
