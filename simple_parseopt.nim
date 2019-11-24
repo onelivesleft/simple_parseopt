@@ -110,25 +110,46 @@ type Param = object
 proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node): (Param, string) =
     let name = name_node.str_val.to_lower
     var param: Param
-    case kind:
-    of param_undefined: param = Param(name: name, kind: param_undefined)
-    of param_int:     param = Param(name: name, kind: param_int,    int_value:    cast[int](value_node.int_val))
-    of param_i8:      param = Param(name: name, kind: param_i8,     i8_value:     cast[int8](value_node.int_val))
-    of param_i16:     param = Param(name: name, kind: param_i16,    i16_value:    cast[int16](value_node.int_val))
-    of param_i32:     param = Param(name: name, kind: param_i32,    i32_value:    cast[int32](value_node.int_val))
-    of param_i64:     param = Param(name: name, kind: param_i64,    i64_value:    value_node.int_val)
-    of param_uint:    param = Param(name: name, kind: param_uint,   uint_value:   cast[uint](value_node.int_val))
-    of param_u8:      param = Param(name: name, kind: param_u8,     u8_value:     cast[uint8](value_node.int_val))
-    of param_u16:     param = Param(name: name, kind: param_u16,    u16_value:    cast[uint16](value_node.int_val))
-    of param_u32:     param = Param(name: name, kind: param_u32,    u32_value:    cast[uint32](value_node.int_val))
-    of param_u64:     param = Param(name: name, kind: param_u64,    u64_value:    cast[uint64](value_node.int_val))
-    of param_float:   param = Param(name: name, kind: param_float,  float_value:  value_node.float_val)
-    of param_f32:     param = Param(name: name, kind: param_f32,    f32_value:    value_node.float_val)
-    of param_f64:     param = Param(name: name, kind: param_f64,    f64_value:    value_node.float_val)
-    of param_char:    param = Param(name: name, kind: param_char,   char_value:   cast[char](value_node.int_val))
-    of param_string:  param = Param(name: name, kind: param_string, string_value: value_node.str_val)
-    of param_bool:    param = Param(name: name, kind: param_bool,   bool_value:   value_node.str_val == "true")
-    of param_seq:     param = Param(name: name, kind: param_seq,    seq_value:    @[value_node.str_val])
+    if value_node == nil:
+        case kind:
+            of param_undefined: param = Param(name: name, kind: param_undefined)
+            of param_int:     param = Param(name: name, kind: param_int)
+            of param_i8:      param = Param(name: name, kind: param_i8)
+            of param_i16:     param = Param(name: name, kind: param_i16)
+            of param_i32:     param = Param(name: name, kind: param_i32)
+            of param_i64:     param = Param(name: name, kind: param_i64)
+            of param_uint:    param = Param(name: name, kind: param_uint)
+            of param_u8:      param = Param(name: name, kind: param_u8)
+            of param_u16:     param = Param(name: name, kind: param_u16)
+            of param_u32:     param = Param(name: name, kind: param_u32)
+            of param_u64:     param = Param(name: name, kind: param_u64)
+            of param_float:   param = Param(name: name, kind: param_float)
+            of param_f32:     param = Param(name: name, kind: param_f32)
+            of param_f64:     param = Param(name: name, kind: param_f64)
+            of param_char:    param = Param(name: name, kind: param_char)
+            of param_string:  param = Param(name: name, kind: param_string)
+            of param_bool:    param = Param(name: name, kind: param_bool)
+            of param_seq:     param = Param(name: name, kind: param_seq)
+    else:
+        case kind:
+        of param_undefined: param = Param(name: name, kind: param_undefined)
+        of param_int:     param = Param(name: name, kind: param_int,    int_value:    cast[int](value_node.int_val))
+        of param_i8:      param = Param(name: name, kind: param_i8,     i8_value:     cast[int8](value_node.int_val))
+        of param_i16:     param = Param(name: name, kind: param_i16,    i16_value:    cast[int16](value_node.int_val))
+        of param_i32:     param = Param(name: name, kind: param_i32,    i32_value:    cast[int32](value_node.int_val))
+        of param_i64:     param = Param(name: name, kind: param_i64,    i64_value:    value_node.int_val)
+        of param_uint:    param = Param(name: name, kind: param_uint,   uint_value:   cast[uint](value_node.int_val))
+        of param_u8:      param = Param(name: name, kind: param_u8,     u8_value:     cast[uint8](value_node.int_val))
+        of param_u16:     param = Param(name: name, kind: param_u16,    u16_value:    cast[uint16](value_node.int_val))
+        of param_u32:     param = Param(name: name, kind: param_u32,    u32_value:    cast[uint32](value_node.int_val))
+        of param_u64:     param = Param(name: name, kind: param_u64,    u64_value:    cast[uint64](value_node.int_val))
+        of param_float:   param = Param(name: name, kind: param_float,  float_value:  value_node.float_val)
+        of param_f32:     param = Param(name: name, kind: param_f32,    f32_value:    value_node.float_val)
+        of param_f64:     param = Param(name: name, kind: param_f64,    f64_value:    value_node.float_val)
+        of param_char:    param = Param(name: name, kind: param_char,   char_value:   cast[char](value_node.int_val))
+        of param_string:  param = Param(name: name, kind: param_string, string_value: value_node.str_val)
+        of param_bool:    param = Param(name: name, kind: param_bool,   bool_value:   value_node.str_val == "true")
+        of param_seq:     param = Param(name: name, kind: param_seq,    seq_value:    @[value_node.str_val])
     return (param, name)
 
 
@@ -235,6 +256,8 @@ proc assignment_from_node(node: Nim_Node): Assignment =
     elif node.kind == nnk_call: # typed assignment
         if node.len != 2 or node[0].kind != nnk_ident or node[1].kind != nnk_stmt_list:
             return (param_undefined, nil, nil)
+        elif node[1].len == 1 and node[1][0].kind == nnk_ident:
+            return (kind_from_ident(node[1][0]), node[0], nil)
         elif node[1].len != 1 or node[1][0].kind != nnk_asgn:
             return (param_undefined, nil, nil)
         elif node[1][0].len != 2 or node[1][0][0].kind != nnk_ident:
@@ -242,17 +265,6 @@ proc assignment_from_node(node: Nim_Node): Assignment =
         else:
             return (kind_from_ident(node[1][0][0]), node[0], node[1][0][1])
 
-
-# Pragmas:
-# min(x)
-# max(x)
-# alias(label)
-
-
-
-
-# Generate Type, Present_Type.
-# Generate instance, and present_instance, and fill them out using command line paramters.
 
 macro parse_options*(body: untyped): untyped =
     if body.kind != nnk_stmt_list:
@@ -648,6 +660,13 @@ when DEBUG:
         big:float64 = 1.1
         small:float = 2.2
         flat:uint = 2
+        hello:string
 
     prettify("Options", parsed_params, true)
     prettify("Present", is_set.repr)
+
+
+dump_tree:
+    block:
+        name = "Iain"
+        hello:string
