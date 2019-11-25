@@ -64,22 +64,29 @@ You may tailor the parser with the following calls:
 
 
 * allow_dash(allow = true) [default: true]
+
 Treat arguments starting with `-` as parameter names.
 
 * allow_slash(allow = true) [default: true]
+
 Treat arguments starting with `/` as parameter names.
 
 * allow_repetition(allow = true) [default: false]
+
 Allow the same parameter name to appear more than once.
 
 * allow_errors(allow = true) [default: false]
+
 Allow execution to continue despite an erroneous command line.
 
 * strict_parameters(strict = true) [default: false]
+
 Do not allow bare arguments: only arguments which match the specified parameters are allowed.
 
 * manual_help(manual = true) [default:false]
+
 If this is not turned on then `-?`, `-h`, and `-help` parameters, if not provided by you, will display a simple help message detailing the available parameters.
 
 * help_info(text: string) [default: "Available parameters:"]
+
 If `manual_help` is not enabled, then this text will be displayed at the start of the automatic help message.
