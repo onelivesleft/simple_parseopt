@@ -25,32 +25,60 @@ else:
 var
     dash_denotes_param = true
     slash_denotes_param = true
+    use_double_dash = false
     parameters_are_unique = true
     quit_on_error = true
     automatic_help = true
     parameters_only = false
-    help_text = "Available parameters:\n"
+    help_text_pre = "Available parameters:\n"
+    help_text_post = ""
 
-proc allow_dash*(use = true) =
-    dash_denotes_param = use
+proc allow_dash*(allow = true) =
+    ## Set whether parameters may be specified by prefixing with `-`
+    ## Default: ON
+    dash_denotes_param = allow
 
-proc allow_slash*(use = true) =
-    slash_denotes_param = use
+proc allow_slash*(allow = true) =
+    ## Set whether parameters may be specified by prefixing with `/`
+    ## Default: ON
+    slash_denotes_param = allow
+
+proc require_double_dash*(require = false) =
+    ## Set whether parameters which have more than one character in their name
+    ## must be prefixed by `--`  instead of `-`
+    ## Default: OFF
+    use_double_dash = require
 
 proc allow_repetition*(allow = true) =
+    ## Set whether the same parameter may by set by the user more than once.
+    ## Default: OFF
     parameters_are_unique = not allow
 
 proc allow_errors*(allow = true) =
+    ## Set whether program execution continues after erroneous input.
+    ## Default: OFF
     quit_on_error = not allow
 
-proc strict_parameters*(none = true) =
-    parameters_only = none
+proc strict_parameters*(strict = true) =
+    ## Set whether only specified parameters are allowed.  Disallows the
+    ## entry of bare arguments.
+    ## Default: OFF
+    parameters_only = strict
 
 proc manual_help*(manual = true) =
+    ## Set whether `-?`, `-h` and `-help` will (if you do not include them)
+    ## display auto-generated help text.
+    ## Default: OFF
     automatic_help = not manual
 
-proc help_info*(text: string) =
-    help_text = text
+proc help_text*(text: string, footer = "") =
+    ## Set the text which is included in the auto-generated help-message
+    ## when the user enters `-?`, `-h`, or `-help`.
+    ##   `text` is displayed at the top, before the parameters, and
+    ##   `footer` is displayed at the bottom, after them.
+    ## Default: "Available parameters:\n" and ""
+    help_text_pre = text
+    help_text_post = footer
 
 when DEBUG:
     var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
@@ -126,7 +154,8 @@ const
 type Param = object
     name: string
     present: bool
-    pragmas: seq[(string, int)]
+    description: string
+    alias: seq[string]
     case kind: ParamKind
     of param_undefined:    discard
     of param_int:          int_value: int
@@ -213,12 +242,21 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
         of param_bool:    param = Param(name: name, kind: param_bool,   bool_value:   value_node.str_val == "true")
         of param_seq:     param = Param(name: name, kind: param_seq,    seq_value:    @[value_node.str_val])
     if pragma_node != nil:
-        param.pragmas = @[]
         for child in pragma_node.children:
-            if child.kind == nnk_ident:
-                param.pragmas.add (child.str_val, 0)
-            elif child.kind == nnk_call and len(child) == 2 and child[0].kind == nnk_ident and child[1].kind == nnk_int_lit:
-                param.pragmas.add (child[0].str_val, cast[int](child[1].int_val))
+            if child.kind != nnk_call or len(child) < 2 or child[0].kind != nnk_ident:
+                error("Invalid pragma node", child)
+            elif child[0].str_val == "alias":
+                for i, alias in child.children.pairs:
+                    if i > 0:
+                        if alias.kind != nnk_str_lit:
+                            error("Invalid pragma node", alias)
+                        else:
+                            param.alias.add alias.str_val
+            elif child[0].str_val == "info":
+                if child[1].kind != nnk_str_lit:
+                    error("Invalid pragma node", child[1])
+                else:
+                    param.description = child[1].str_val
             else:
                 error("Invalid pragma node")
     return (param, name)
@@ -371,6 +409,43 @@ proc assignment_from_node(node: Nim_Node): Assignment =
 
 
 macro get_options_and_supplied*(body: untyped): untyped =
+    ## Parses the command-line arguments provided by the user,
+    ## using the code block to fill out an object's fields.
+    ##
+    ## Returns a tuple of two objects: the first as detailed by
+    ## the code block, the second a mirror of it, but all of `bool`.
+    ## For any parameters which the user has supplied on the command line,
+    ## the field on the second object will be set to `true`.
+    ##
+    ## The block is filled out as if it were a `var` block.
+    ## All basic intrinsic types are supported.
+    ## i.e. all of these are valid:
+    ##
+    ##   x = 0
+    ##   x:int32
+    ##   x:int = 20
+    ##
+    ## You may also add pragmas to the end of any line:
+    ##
+    ##   (. info("Description") .}  = description of the parameter
+    ##   {. alias("a", "b", ...) .} = aliases for the parameter
+    ##
+    ## Example:
+    ##
+    ## let options, supplied = get_options_and_supplied:
+    ##     teenager = "Joe Random" {. alias("name", "n") .}
+    ##     age[int8] = 13
+    ##     nin:string              {. info("National Insurance Number") .}
+    ##
+    ## if not supplied.nin:
+    ##     echo "Must supply NIN"
+    ##     quit(1)
+    ##
+    ## if age < 13 or age > 19:
+    ##     echo "Not a teenager!"
+    ##     quit(1)
+
+
     if body.kind != nnk_stmt_list:
         error("Block expected, e.g. var opts = parse_params: ...", body)
 
@@ -832,8 +907,6 @@ macro get_options_and_supplied*(body: untyped): untyped =
         add_name name
         add_type_lookup name, param.kind
         add_default_value name, string_from_param(param)
-        for p in param.pragmas:
-            echo "Found pragma for " & name & " = " & p[0]
 
     # arguments list for loose args
     type_node.add nnk_ident_defs.new_tree(
@@ -854,6 +927,38 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
 
 macro get_options*(body: untyped): untyped =
+    ## Parses the command-line arguments provided by the user,
+    ## using the code block to fill out an object's fields.
+    ##
+    ## Returns an object whose fields are detailed by the code block.
+    ##
+    ## The block is filled out as if it were a `var` block.
+    ## All basic intrinsic types are supported.
+    ## i.e. all of these are valid:
+    ##
+    ##   x = 0
+    ##   x:int32
+    ##   x:int = 20
+    ##
+    ## You may also add pragmas to the end of any line:
+    ##
+    ##   (. info("Description") .}  = description of the parameter
+    ##   {. alias("a", "b", ...) .} = aliases for the parameter
+    ##
+    ## Example:
+    ##
+    ## let options = get_options:
+    ##     teenager = "Joe Random" {. alias("name", "n") .}
+    ##     age[int8] = 13
+    ##     nin:string              {. info("National Insurance Number") .}
+    ##
+    ## if nin.len != 9:
+    ##     echo "Must supply valid NIN"
+    ##     quit(1)
+    ##
+    ## if age < 13 or age > 19:
+    ##     echo "Not a teenager!"
+    ##     quit(1)
     var options, _ = quote do:
         get_options_and_supplied(`body`)[0]
     return options
@@ -862,28 +967,25 @@ macro get_options*(body: untyped): untyped =
 when DEBUG:
     DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
 
-    var options = get_options:
-        name = "Default Name"
-        toggle = false
-        letter = 'a'
-        age = 1 {. min(0) .}
-        here = true
-        there = false
-        big:float64 = 1.1
-        small:float = 2.2 {. blobby .}
-        flat:uint = 2
-        hello:string {. ok .}
-
-    echo options.repr
+#    var options = get_options:
+#        name = "Default Name"
+#        toggle = false
+#        letter = 'a'
+#        age = 1 {. min(0) .}
+#        here = true
+#        there = false
+#        big:float64 = 1.1
+#        small:float = 2.2 {. blobby .}
+#        flat:uint = 2
+#        hello:string {. ok .}
+#
+#    echo options.repr
 #    prettify("Options", parsed_params, true)
     #prettify("Present", is_set.repr)
 
 #template ok {. pragma .}
 #template min(bound: int) {. pragma .}
 #
-#dump_tree:
-#    x = 1 {.ok.}
-#    yi:int = 1
-#    xi:int = 1 {. ok, min(0) .}
-#    x:int
-#    y:int {. ok, min(0) .}
+dump_tree:
+    x = 1 {.alias("x", "y", "z").}
+    y:int {. info("A Y and only a Y") .}
