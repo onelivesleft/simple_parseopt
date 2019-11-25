@@ -866,7 +866,7 @@ when DEBUG:
         name = "Default Name"
         toggle = false
         letter = 'a'
-        age = 1 {. min("hi") .}
+        age = 1 {. min(0) .}
         here = true
         there = false
         big:float64 = 1.1
