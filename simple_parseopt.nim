@@ -465,9 +465,9 @@ macro parse_options*(body: untyped): untyped =
                 elif slash_denotes_param:
                     prefix = "/"
                 var letters = 0
-                for i, name in `outer_param_names`:
+                for i, name in `outer_param_names`[0 ..< ^1]:
                     if name.len > letters: letters = name.len
-                for i, name in `outer_param_names`:
+                for i, name in `outer_param_names`[0 ..< ^1]:
                     var default = `outer_param_default`[i]
                     if default == "" or `outer_param_type`[i] == `int_param_bool`:
                         echo " ", prefix, name
@@ -475,7 +475,7 @@ macro parse_options*(body: untyped): untyped =
                         var spacer = ""
                         while name.len + spacer.len < letters:
                             spacer = spacer & " "
-                        echo " ", prefix, name, spacer, "   [", default, "]"
+                        echo " ", prefix, name, spacer, "     [", default, "]"
                 echo ""
 
             proc is_present(address: ptr `present_type_name`, name: string): bool =
