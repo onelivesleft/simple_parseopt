@@ -13,6 +13,7 @@ const
     OFFSET_NAME = "param_offset"
     OFFSET_PRESENT_NAME = "param_present_offset"
     VAR_TYPE_NAME = "param_type"
+    VAR_DEFAULT_NAME = "param_defaults"
     PROC_NAME = "parse"
     ARGUMENTS_NAME = "arguments"
 
@@ -27,6 +28,8 @@ var
     parameters_are_unique = true
     quit_on_error = true
     automatic_help = true
+    parameters_only = false
+    help_text = "Available parameters:\n"
 
 proc allow_dash*(use = true) =
     dash_denotes_param = use
@@ -40,9 +43,14 @@ proc allow_repetition*(allow = true) =
 proc allow_errors*(allow = true) =
     quit_on_error = not allow
 
+proc strict_parameters*(none = true) =
+    parameters_only = none
+
 proc manual_help*(manual = true) =
     automatic_help = not manual
 
+proc help_info*(text: string) =
+    help_text = text
 
 when DEBUG:
     var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
@@ -292,6 +300,31 @@ proc value_node_from_param(param: Param): Nim_Node =
         else:
             return ident("false")
 
+proc string_from_param(param: Param): string =
+    case param.kind:
+    of param_undefined: return ""
+    of param_seq:       return ""
+    of param_int:       return repr(param.int_value)
+    of param_i8:        return repr(param.i8_value)
+    of param_i16:       return repr(param.i16_value)
+    of param_i32:       return repr(param.i32_value)
+    of param_i64:       return repr(param.i64_value)
+    of param_uint:      return repr(param.uint_value)
+    of param_u8:        return repr(param.u8_value)
+    of param_u16:       return repr(param.u16_value)
+    of param_u32:       return repr(param.u32_value)
+    of param_u64:       return repr(param.u64_value)
+    of param_float:     return repr(param.float_value)
+    of param_f32:       return repr(param.f32_value)
+    of param_f64:       return repr(param.f64_value)
+    of param_char:      return repr(param.char_value)
+    of param_string:    return param.string_value
+    of param_bool:
+        if param.bool_value:
+            return "true"
+        else:
+            return "false"
+
 
 type Assignment = tuple
     kind: Param_Kind
@@ -374,6 +407,16 @@ macro parse_options*(body: untyped): untyped =
                     ident("new_seq"),
                     ident("int")))))
 
+    var param_default_node = new_nim_node(nnk_var_section)
+    param_default_node.add(
+        nnk_ident_defs.new_tree(
+            ident(VAR_DEFAULT_NAME),
+            new_empty_node(),
+            nnk_call.new_tree(
+                nnk_bracket_expr.new_tree(
+                    ident("new_seq"),
+                    ident("string")))))
+
     var offset_node = new_nim_node(nnk_block_stmt)
     offset_node.add new_empty_node()
     offset_node.add new_nim_node(nnk_stmt_list)
@@ -385,6 +428,7 @@ macro parse_options*(body: untyped): untyped =
     let outer_param_offset = ident(OFFSET_NAME)
     let outer_param_present_offset = ident(OFFSET_PRESENT_NAME)
     let outer_param_type = ident(VAR_TYPE_NAME)
+    let outer_param_default = ident(VAR_DEFAULT_NAME)
 
     var proc_node = quote do:
         proc `proc_name`(options: var `type_name`, present: var `present_type_name`): (`type_name`, `present_type_name`) =
@@ -412,6 +456,27 @@ macro parse_options*(body: untyped): untyped =
 
             proc get_param_type(name: string): int =
                 return `outer_param_type`[index_from_name(name)]
+
+            proc do_help() =
+                echo help_text
+                var prefix = ""
+                if dash_denotes_param:
+                    prefix = "-"
+                elif slash_denotes_param:
+                    prefix = "/"
+                var letters = 0
+                for i, name in `outer_param_names`:
+                    if name.len > letters: letters = name.len
+                for i, name in `outer_param_names`:
+                    var default = `outer_param_default`[i]
+                    if default == "" or `outer_param_type`[i] == `int_param_bool`:
+                        echo " ", prefix, name
+                    else:
+                        var spacer = ""
+                        while name.len + spacer.len < letters:
+                            spacer = spacer & " "
+                        echo " ", prefix, name, spacer, "   [", default, "]"
+                echo ""
 
             proc is_present(address: ptr `present_type_name`, name: string): bool =
                 let field = cast[ptr bool](cast[uint](address) + get_param_present_offset(name))
@@ -554,7 +619,11 @@ macro parse_options*(body: untyped): untyped =
                         parse_error("Expected value for: " & awaiting_value_for)
                     var name = word[1 ..< ^0].to_lower
                     if not `outer_param_names`.contains(name):
-                        parse_error("Unexpected parameter: " & word)
+                        if automatic_help and (name == "help" or name == "h" or name == "?"):
+                            do_help()
+                            quit(0)
+                        else:
+                            parse_error("No such parameter: " & word)
                     if parameters_are_unique and is_present(addr present, name):
                         parse_error("Parameter already set: " & word)
 
@@ -573,6 +642,8 @@ macro parse_options*(body: untyped): untyped =
                             awaiting_value = false
                         else:
                             parse_error("Could not parse value for: " & word)
+                    elif parameters_only:
+                        parse_error("No such parameter: " & word)
                     else:
                         let field = cast[ptr seq[string]](cast[uint](addr options) + get_param_offset(`ARGUMENTS_NAME`))
                         field[].add word
@@ -603,6 +674,7 @@ macro parse_options*(body: untyped): untyped =
     result[1].add param_node
     result[1].add param_present_node
     result[1].add param_type_node
+    result[1].add param_default_node
     result[1].add offset_node
     result[1].add proc_node
     result[1].add call_node
@@ -723,6 +795,14 @@ macro parse_options*(body: untyped): untyped =
                     ident("add")),
                 new_int_lit_node(int_param_from_param(kind))))
 
+    template add_default_value(name: string, default: string) =
+        offset_node.add(
+            nnk_call.new_tree(
+                nnk_dot_expr.new_tree(
+                    ident(VAR_DEFAULT_NAME),
+                    ident("add")),
+                new_str_lit_node(default)))
+
     for name in params_in_order:
         let param = params[name]
         add_type name, param.kind
@@ -731,6 +811,7 @@ macro parse_options*(body: untyped): untyped =
         add_present_offset name
         add_name name
         add_type_lookup name, param.kind
+        add_default_value name, string_from_param(param)
 
     # arguments list for loose args
     type_node.add nnk_ident_defs.new_tree(
@@ -747,11 +828,11 @@ macro parse_options*(body: untyped): untyped =
     add_present_offset ARGUMENTS_NAME
     add_name ARGUMENTS_NAME
     add_type_lookup ARGUMENTS_NAME, param_seq
+    add_default_value ARGUMENTS_NAME, ""
 
 
 when DEBUG:
-    allow_repetition()
-    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
+    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob -h"
 
     var (parsed_params, is_set) = parse_options:
         name = "Default Name"
