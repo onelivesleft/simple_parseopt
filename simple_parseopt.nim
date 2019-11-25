@@ -410,7 +410,7 @@ proc assignment_from_node(node: Nim_Node): Assignment =
 
 macro get_options_and_supplied*(body: untyped): untyped =
     ## Parses the command-line arguments provided by the user,
-    ## using the code block to fill out an object's fields.
+    ## using it and the code block to fill out an object's fields.
     ##
     ## Returns a tuple of two objects: the first as detailed by
     ## the code block, the second a mirror of it, but all of `bool`.
@@ -441,7 +441,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ##     echo "Must supply NIN"
     ##     quit(1)
     ##
-    ## if age < 13 or age > 19:
+    ## if options.age < 13 or options.age > 19:
     ##     echo "Not a teenager!"
     ##     quit(1)
 
@@ -928,7 +928,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
 macro get_options*(body: untyped): untyped =
     ## Parses the command-line arguments provided by the user,
-    ## using the code block to fill out an object's fields.
+    ## using it and the code block to fill out an object's fields.
     ##
     ## Returns an object whose fields are detailed by the code block.
     ##
@@ -952,11 +952,11 @@ macro get_options*(body: untyped): untyped =
     ##     age[int8] = 13
     ##     nin:string              {. info("National Insurance Number") .}
     ##
-    ## if nin.len != 9:
+    ## if options.nin.len != 9:
     ##     echo "Must supply valid NIN"
     ##     quit(1)
     ##
-    ## if age < 13 or age > 19:
+    ## if options.age < 13 or options.age > 19:
     ##     echo "Not a teenager!"
     ##     quit(1)
     var options, _ = quote do:
