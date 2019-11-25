@@ -1,4 +1,4 @@
-import simple_parseopt, tables
+import simple_parseopt
 
 let (options, is_set) = parse_options:
     name = "Iain King"
