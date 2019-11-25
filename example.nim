@@ -1,6 +1,12 @@
 import simple_parseopt
 
-let (options, is_set) = parse_options:
+#let (xmas, _) = get_options_and_presence:
+#    foo = "Holiday"
+#    bar = "Season"
+#
+#echo xmas.foo, " ", xmas.bar
+
+let (options, is_set) = get_options_and_supplied:
     name = "Iain King"
     age = 41
 

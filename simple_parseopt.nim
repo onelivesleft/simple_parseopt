@@ -350,7 +350,7 @@ proc assignment_from_node(node: Nim_Node): Assignment =
             return (kind_from_ident(node[1][0][0]), node[0], node[1][0][1])
 
 
-macro parse_options*(body: untyped): untyped =
+macro get_options_and_supplied*(body: untyped): untyped =
     if body.kind != nnk_stmt_list:
         error("Block expected, e.g. var opts = parse_params: ...", body)
 
@@ -831,10 +831,16 @@ macro parse_options*(body: untyped): untyped =
     add_default_value ARGUMENTS_NAME, ""
 
 
-when DEBUG:
-    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob -h"
+macro get_options*(body: untyped): untyped =
+    var options, _ = quote do:
+        get_options_and_supplied(`body`)[0]
+    return options
 
-    var (parsed_params, is_set) = parse_options:
+
+when DEBUG:
+    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
+
+    var options = get_options:
         name = "Default Name"
         toggle = false
         letter = 'a'
@@ -846,5 +852,6 @@ when DEBUG:
         flat:uint = 2
         hello:string
 
-    prettify("Options", parsed_params, true)
-    prettify("Present", is_set.repr)
+    echo options.repr
+#    prettify("Options", parsed_params, true)
+    #prettify("Present", is_set.repr)
