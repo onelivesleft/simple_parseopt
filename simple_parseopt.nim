@@ -121,9 +121,12 @@ const
     int_param_seq       = 17
 
 
+
+
 type Param = object
     name: string
     present: bool
+    pragmas: seq[(string, int)]
     case kind: ParamKind
     of param_undefined:    discard
     of param_int:          int_value: int
@@ -166,7 +169,7 @@ proc int_param_from_param(kind: Param_Kind): int =
     of param_bool: return int_param_bool
     of param_seq: return int_param_seq
 
-proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node): (Param, string) =
+proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node, pragma_node: Nim_Node): (Param, string) =
     let name = name_node.str_val.to_lower
     var param: Param
     if value_node == nil:
@@ -209,6 +212,15 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
         of param_string:  param = Param(name: name, kind: param_string, string_value: value_node.str_val)
         of param_bool:    param = Param(name: name, kind: param_bool,   bool_value:   value_node.str_val == "true")
         of param_seq:     param = Param(name: name, kind: param_seq,    seq_value:    @[value_node.str_val])
+    if pragma_node != nil:
+        param.pragmas = @[]
+        for child in pragma_node.children:
+            if child.kind == nnk_ident:
+                param.pragmas.add (child.str_val, 0)
+            elif child.kind == nnk_call and len(child) == 2 and child[0].kind == nnk_ident and child[1].kind == nnk_int_lit:
+                param.pragmas.add (child[0].str_val, cast[int](child[1].int_val))
+            else:
+                error("Invalid pragma node")
     return (param, name)
 
 
@@ -330,24 +342,32 @@ type Assignment = tuple
     kind: Param_Kind
     name_node: Nim_Node
     value_node: Nim_Node
+    pragma_node: Nim_Node
+    error: int
 
 proc assignment_from_node(node: Nim_Node): Assignment =
     if node.kind == nnk_asgn: # simple assignment
-        if node.len != 2 or node[0].kind != nnk_ident:
-            return (param_undefined, nil, nil)
-        else:
-            return (kind_from_lit(node[1]), node[0], node[1])
+        if node.len != 2 or node[0].kind != nnk_ident:                                                  # error 1
+            return (param_undefined, nil, nil, nil, 1)
+        elif node[1].kind == nnk_pragma_expr and len(node[1]) == 2 and node[1][1].kind == nnk_pragma:   # x = n + pragma
+            return (kind_from_lit(node[1][0]), node[0], node[1][0], node[1][1], 0)
+        else:                                                                                           # x = n
+            return (kind_from_lit(node[1]), node[0], node[1], nil, 0)
     elif node.kind == nnk_call: # typed assignment
-        if node.len != 2 or node[0].kind != nnk_ident or node[1].kind != nnk_stmt_list:
-            return (param_undefined, nil, nil)
-        elif node[1].len == 1 and node[1][0].kind == nnk_ident:
-            return (kind_from_ident(node[1][0]), node[0], nil)
-        elif node[1].len != 1 or node[1][0].kind != nnk_asgn:
-            return (param_undefined, nil, nil)
-        elif node[1][0].len != 2 or node[1][0][0].kind != nnk_ident:
-            return (param_undefined, nil, nil)
-        else:
-            return (kind_from_ident(node[1][0][0]), node[0], node[1][0][1])
+        if node.len != 2 or node[0].kind != nnk_ident or node[1].kind != nnk_stmt_list:                 # error 2
+            return (param_undefined, nil, nil, nil, 2)
+        elif node[1].len == 1 and node[1][0].kind == nnk_ident:                                         # x:t
+            return (kind_from_ident(node[1][0]), node[0], nil, nil, 0)
+        elif node[1].len == 1 and node[1][0].kind == nnk_pragma_expr:                                   # x:t + pragma
+            return (kind_from_ident(node[1][0][0]), node[0], nil, node[1][0][1], 0)
+        elif node[1].len != 1 or node[1][0].kind != nnk_asgn:                                           # error 3
+            return (param_undefined, nil, nil, nil, 3)
+        elif node[1][0].len != 2 or node[1][0][0].kind != nnk_ident:                                    # error 4
+            return (param_undefined, nil, nil, nil, 4)
+        elif node[1][0].len == 2 and node[1][0][1].kind == nnk_pragma_expr:                             # x:t = n + pragma
+            return (kind_from_ident(node[1][0][0]), node[0], node[1][0][1][0], node[1][0][1][1], 0)
+        else:                                                                                           # x:t = n
+            return (kind_from_ident(node[1][0][0]), node[0], node[1][0][1], nil, 0)
 
 
 macro get_options_and_supplied*(body: untyped): untyped =
@@ -358,10 +378,10 @@ macro get_options_and_supplied*(body: untyped): untyped =
     var params_in_order: seq[string] = @[]
 
     for node in body.children:
-        var (kind, name_node, value_node) = assignment_from_node(node)
+        var (kind, name_node, value_node, pragma_node, error) = assignment_from_node(node)
         if  kind == param_undefined:
-            error("Expected assignment, e.g. x = 1 or x:int = 1", node)
-        let (param, name) = param_from_nodes(name_node, kind, value_node)
+            error("Expected declaration, e.g. x = 1 or x:int = 1 or x:int [ERR:" & error.repr & "]", node)
+        let (param, name) = param_from_nodes(name_node, kind, value_node, pragma_node)
         if name in params:
             error("Duplicate param.", node)
         params[name] = param
@@ -812,6 +832,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
         add_name name
         add_type_lookup name, param.kind
         add_default_value name, string_from_param(param)
+        for p in param.pragmas:
+            echo "Found pragma for " & name & " = " & p[0]
 
     # arguments list for loose args
     type_node.add nnk_ident_defs.new_tree(
@@ -844,14 +866,24 @@ when DEBUG:
         name = "Default Name"
         toggle = false
         letter = 'a'
-        age = 1
+        age = 1 {. min("hi") .}
         here = true
         there = false
         big:float64 = 1.1
-        small:float = 2.2
+        small:float = 2.2 {. blobby .}
         flat:uint = 2
-        hello:string
+        hello:string {. ok .}
 
     echo options.repr
 #    prettify("Options", parsed_params, true)
     #prettify("Present", is_set.repr)
+
+#template ok {. pragma .}
+#template min(bound: int) {. pragma .}
+#
+#dump_tree:
+#    x = 1 {.ok.}
+#    yi:int = 1
+#    xi:int = 1 {. ok, min(0) .}
+#    x:int
+#    y:int {. ok, min(0) .}
