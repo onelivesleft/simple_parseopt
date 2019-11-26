@@ -1,7 +1,17 @@
 import macros, tables, os, strutils
-export tables
+
 #
-# @TODO: rewrite without dependencies.  Use seq instead of tables.
+# @TODO:
+#
+#  {. bare .}
+#  {. alias .}
+#  {. info .}
+#  array[]
+#  seq[]
+#
+# use_double_dash
+# implicit_bare
+# automatic_help upgrade
 #
 
 const
@@ -26,59 +36,104 @@ var
     dash_denotes_param = true
     slash_denotes_param = true
     use_double_dash = false
-    parameters_are_unique = true
+    implicit_bare = true
     quit_on_error = true
     automatic_help = true
-    parameters_only = false
+    parameters_are_unique = true
     help_text_pre = "Available parameters:\n"
     help_text_post = ""
 
-proc allow_dash*(allow = true) =
-    ## Set whether parameters may be specified by prefixing with `-`
-    ## Default: ON
-    dash_denotes_param = allow
 
-proc allow_slash*(allow = true) =
-    ## Set whether parameters may be specified by prefixing with `/`
-    ## Default: ON
-    slash_denotes_param = allow
+macro config*(body: untyped): untyped =
+    ## Helper macro to let you easily specify several config options.
+    ##
+    ## Example:
+    ##
+    ##     config: no_slash.require_double_dash.strict_parameters
+    ##
 
-proc require_double_dash*(require = false) =
-    ## Set whether parameters which have more than one character in their name
-    ## must be prefixed by `--`  instead of `-`
-    ## Default: OFF
-    use_double_dash = require
+    proc check_for_help_text(node: Nim_Node): Nim_Node =
+        if node.kind == nnk_ident and node.str_val == "help_text":
+            return node
+        elif node.len > 0:
+            for child in node.children:
+                var help_node = check_for_help_text(child)
+                if help_node != nil:
+                    return help_node
+        return nil
 
-proc allow_repetition*(allow = true) =
-    ## Set whether the same parameter may by set by the user more than once.
-    ## Default: OFF
-    parameters_are_unique = not allow
+    let help_node = check_for_help_text(body)
+    if help_node != nil:
+        error("Cannot include `help_text` proc in config chain", help_node)
 
-proc allow_errors*(allow = true) =
-    ## Set whether program execution continues after erroneous input.
-    ## Default: OFF
-    quit_on_error = not allow
+    body.expect_kind(nnk_stmt_list)
+    if body.len != 1: error("Expected dot expression", body)
 
-proc strict_parameters*(strict = true) =
-    ## Set whether only specified parameters are allowed.  Disallows the
-    ## entry of bare arguments.
-    ## Default: OFF
-    parameters_only = strict
+    result = new_nim_node(nnk_stmt_list)
+    if body[0].kind == nnk_ident:
+        result.add nnk_call.new_tree(body[0].copy_nim_node)
+    else:
+        body[0].expect_kind(nnk_dot_expr)
+        proc walk(node: Nim_Node, write: Nim_Node) =
+            if node.len == 2:
+                if node[0].kind == nnk_ident and node[1].kind == nnk_ident:
+                    write.add nnk_call.new_tree(node[0].copy_nim_node)
+                    write.add nnk_call.new_tree(node[1].copy_nim_node)
+                elif node[0].kind == nnk_dot_expr and node[1].kind == nnk_ident:
+                    walk(node[0], write)
+            else:
+                error("Expected dot expression", node)
+        walk body[0], result
 
-proc manual_help*(manual = true) =
-    ## Set whether `-?`, `-h` and `-help` will (if you do not include them)
-    ## display auto-generated help text.
-    ## Default: OFF
-    automatic_help = not manual
+
+proc no_dash*() =
+    ## Disable parameter being identified by prefixing with `-`
+    dash_denotes_param = false
+
+proc no_slash*() =
+    ## Disable parameter being identified by prefixing with `/`
+    slash_denotes_param = false
+
+proc require_double_dash*() =
+    ## Require that parameters which have more than one character in their name
+    ## be prefixed with `--` instead of `-`.
+    ## Single-character parameters may then be entered grouped together under
+    ## one `-`
+    use_double_dash = true
+
+proc allow_repetition*() =
+    ## Allow the user to specify the same parameter more than once with reporting
+    ## an error.
+    parameters_are_unique = false
+
+proc allow_errors*() =
+    ## Allow program execution to continue after erroneous input.
+    quit_on_error = true
+
+proc no_implicit_bare*() =
+    ## Do not automatically use the last seq[string] parameter to gather any
+    ## bare parameters the user enters (instead they become erroneous)
+    implicit_bare = false
+
+proc manual_help*() =
+    ## Disable automatic generation of help message when user enters
+    ## `-?`, `-h` or `-help` (when you do not include them as parameters)
+    automatic_help = false
 
 proc help_text*(text: string, footer = "") =
     ## Set the text which is included in the auto-generated help-message
     ## when the user enters `-?`, `-h`, or `-help`.
     ##   `text` is displayed at the top, before the parameters, and
     ##   `footer` is displayed at the bottom, after them.
+    ##
+    ##   Note: help_text may not be included in a `config:` chain
+    ##
     ## Default: "Available parameters:\n" and ""
     help_text_pre = text
-    help_text_post = footer
+    if footer != "":
+        help_text_post = footer
+
+
 
 when DEBUG:
     var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
@@ -149,8 +204,6 @@ const
     int_param_seq       = 17
 
 
-
-
 type Param = object
     name: string
     present: bool
@@ -197,6 +250,7 @@ proc int_param_from_param(kind: Param_Kind): int =
     of param_string: return int_param_string
     of param_bool: return int_param_bool
     of param_seq: return int_param_seq
+
 
 proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node, pragma_node: Nim_Node): (Param, string) =
     let name = name_node.str_val.to_lower
@@ -350,6 +404,7 @@ proc value_node_from_param(param: Param): Nim_Node =
         else:
             return ident("false")
 
+
 proc string_from_param(param: Param): string =
     case param.kind:
     of param_undefined: return ""
@@ -409,7 +464,7 @@ proc assignment_from_node(node: Nim_Node): Assignment =
 
 
 macro get_options_and_supplied*(body: untyped): untyped =
-    ## Parses the command-line arguments provided by the user,
+    ## Parses the command-line arguments provided by the user,   @TODO update this
     ## using it and the code block to fill out an object's fields.
     ##
     ## Returns a tuple of two objects: the first as detailed by
@@ -553,7 +608,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 return `outer_param_type`[index_from_name(name)]
 
             proc do_help() =
-                echo help_text
+                echo help_text_pre
                 var prefix = ""
                 if dash_denotes_param:
                     prefix = "-"
@@ -572,6 +627,10 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             spacer = spacer & " "
                         echo " ", prefix, name, spacer, "     [", default, "]"
                 echo ""
+                if help_text_post != "":
+                    echo help_text_post
+                    echo ""
+
 
             proc is_present(address: ptr `present_type_name`, name: string): bool =
                 let field = cast[ptr bool](cast[uint](address) + get_param_present_offset(name))
@@ -737,8 +796,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             awaiting_value = false
                         else:
                             parse_error("Could not parse value for: " & word)
-                    elif parameters_only:
-                        parse_error("No such parameter: " & word)
+                    #elif parameters_only:
+                    #    parse_error("Invalid input (you must declare which parameter you are setting): " & word)
                     else:
                         let field = cast[ptr seq[string]](cast[uint](addr options) + get_param_offset(`ARGUMENTS_NAME`))
                         field[].add word
@@ -927,7 +986,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
 
 macro get_options*(body: untyped): untyped =
-    ## Parses the command-line arguments provided by the user,
+    ## Parses the command-line arguments provided by the user,   @TODO update this
     ## using it and the code block to fill out an object's fields.
     ##
     ## Returns an object whose fields are detailed by the code block.
@@ -967,25 +1026,27 @@ macro get_options*(body: untyped): untyped =
 when DEBUG:
     DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
 
-#    var options = get_options:
-#        name = "Default Name"
-#        toggle = false
-#        letter = 'a'
-#        age = 1 {. min(0) .}
-#        here = true
-#        there = false
-#        big:float64 = 1.1
-#        small:float = 2.2 {. blobby .}
-#        flat:uint = 2
-#        hello:string {. ok .}
-#
-#    echo options.repr
-#    prettify("Options", parsed_params, true)
-    #prettify("Present", is_set.repr)
+    config: no_slash
+
+    var options, is_set = get_options_and_supplied:
+        name = "Default Name"
+        toggle = false
+        letter = 'a'
+        age = 1
+        here = true
+        there = false
+        big:float64 = 1.1
+        small:float = 2.2
+        flat:uint = 2
+        hello:string
+
+    echo options.repr
+    prettify("Options", options, true)
+    prettify("Present", is_set.repr)
 
 #template ok {. pragma .}
 #template min(bound: int) {. pragma .}
 #
-dump_tree:
-    x = 1 {.alias("x", "y", "z").}
-    y:int {. info("A Y and only a Y") .}
+#dump_tree:
+#    x = 1 {.alias("x", "y", "z").}
+#    y:int {. info("A Y and only a Y") .}
