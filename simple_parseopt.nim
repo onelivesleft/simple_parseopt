@@ -7,10 +7,8 @@ import macros, tables, os, strutils
 #  {. len .}
 #  {. required .}
 #  seq = @[] initializer
-#  bare after --
 #
 # automatic_help upgrade
-# param:value / param=value
 
 const
     TYPE_NAME = "Options"
@@ -36,6 +34,8 @@ var
     slash_denotes_param = true
     use_double_dash = false
     double_dash_separator = false
+    split_on_colon = false
+    split_on_equals = false
     implicit_bare = true
     quit_on_error = true
     automatic_help = true
@@ -74,13 +74,16 @@ macro config*(body: untyped): untyped =
         result.add nnk_call.new_tree(body[0].copy_nim_node)
     else:
         body[0].expect_kind(nnk_dot_expr)
-        proc walk(node: Nim_Node, write: Nim_Node) =
-            if node.len == 2:
-                if node[0].kind == nnk_ident and node[1].kind == nnk_ident:
+        proc walk(node: Nim_Node, write: Nim_Node, count = 0) =
+            if node.len == 2 and node[1].kind == nnk_ident:
+                if node[0].kind == nnk_dot_expr:
+                    walk(node[0], write, count+1)
+                    write.add nnk_call.new_tree(node[1].copy_nim_node)
+                elif node[0].kind == nnk_ident:
                     write.add nnk_call.new_tree(node[0].copy_nim_node)
                     write.add nnk_call.new_tree(node[1].copy_nim_node)
-                elif node[0].kind == nnk_dot_expr and node[1].kind == nnk_ident:
-                    walk(node[0], write)
+                else:
+                    error("Expected dot expression", node)
             else:
                 error("Expected dot expression", node)
         walk body[0], result
@@ -102,9 +105,19 @@ proc dash_dash_parameters*() =
     use_double_dash = true
 
 proc dash_dash_separator*() =
-    ## A `--` on its own will disable parameter names on every argument
-    ## after it; they will all be treate as bare.
+    ## `--` on its own in the command line will disable parameter names on every
+    ## argument after it; they will all be treate as bare.
     double_dash_separator = true
+
+proc value_after_colon*() =
+    ## Allow the user to specify parameter & value together, separated by a `:`
+    ## e.g. -param:value
+    split_on_colon = true
+
+proc value_after_equals*() =
+    ## Allow the user to specify parameter & value together, separated by a `=`
+    ## e.g. -param=value
+    split_on_equals = true
 
 proc allow_repetition*() =
     ## Allow the user to specify the same parameter more than once with reporting
@@ -125,6 +138,7 @@ proc manual_help*() =
     ## `-?`, `-h` or `-help` (when you do not include them as parameters)
     automatic_help = false
 
+
 proc help_text*(text: string, footer = "") =
     ## Set the text which is included in the auto-generated help-message
     ## when the user enters `-?`, `-h`, or `-help`.
@@ -138,14 +152,15 @@ proc help_text*(text: string, footer = "") =
     if footer != "":
         help_text_post = footer
 
-
+template print(s: string) =
+    echo s
 
 when DEBUG:
     var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
     proc prettify[T](title: string, data: T, new_section = false) =
         if new_section:
-            echo "--------------"
-        echo title
+            print "--------------"
+        print title
         let s = $data
         var indenting = false
         for output in s[1 ..< ^1].strip.replace("[", "").replace("]", "").split(','):
@@ -156,7 +171,7 @@ when DEBUG:
                 line = line[0 ..< start + 3] & line[skip ..< ^0]
             if line.contains(": @"):
                 let c = line.find("@")
-                echo line[0 ..< c]
+                print line[0 ..< c]
                 line = line[c + 1 ..< ^0]
                 indenting = true
             if indenting:
@@ -165,8 +180,8 @@ when DEBUG:
                 else:
                     line = "  " & line
             if line != "":
-                echo line
-        echo ""
+                print line
+        print ""
 
 
 type Param_Kind = enum
@@ -570,11 +585,11 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ##     arguments:seq[string]
     ##
     ## if not supplied.nin:
-    ##     echo "Must supply NIN"
+    ##     report "Must supply NIN"
     ##     quit(1)
     ##
     ## if options.age < 13 or options.age > 19:
-    ##     echo "Not a teenager!"
+    ##     report "Not a teenager!"
     ##     quit(1)
 
 
@@ -688,7 +703,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 prettify("Supplied", present.repr)
 
             template parse_error(err: string) =
-                echo err
+                print err
                 if quit_on_error:
                     quit(1)
 
@@ -714,14 +729,19 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 let kind = get_param_type(name)
                 return kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float
 
-            proc do_help() =
-                echo help_text_pre
-                var prefix = ""
-                var extra_prefix = ""
+            template get_prefix(name: string): string =
                 if dash_denotes_param:
-                    prefix = "-"
+                    if use_double_dash and name.len > 1:
+                        "--"
+                    else:
+                        "-"
                 elif slash_denotes_param:
-                    prefix = "/"
+                    "/"
+                else:
+                    ""
+
+            proc do_help() =
+                print help_text_pre
                 var letters = 0
                 proc full_name(index: int): string =
                     if `outer_bare_indexes`.contains(index):
@@ -736,21 +756,17 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     let display_name = full_name(i)
                     if display_name == "": continue
                     let postfix = `outer_param_descriptions`[i]
-                    if name.len > 1 and use_double_dash:
-                        extra_prefix = "-"
-                    else:
-                        extra_prefix = ""
                     if postfix == "":
-                        echo " ", prefix, display_name
+                        print " " & get_prefix(name) & display_name
                     else:
                         var spacer = ""
                         while display_name.len + spacer.len < letters:
                             spacer = spacer & " "
-                        echo " ", prefix, display_name, spacer, "  ", postfix
-                echo ""
+                        print " " & get_prefix(name) & display_name & spacer & "  " & postfix
+                print ""
                 if help_text_post != "":
-                    echo help_text_post
-                    echo ""
+                    print help_text_post
+                    print ""
 
 
             proc is_present(address: ptr `present_type_name`, name: string): bool =
@@ -973,13 +989,22 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     if writing_to_seq:
                         writing_to_seq = false
                     elif awaiting_value and next_word_index > no_await_value_check_until:
-                        parse_error("Expected value for: " & awaiting_value_for)
+                        parse_error("Expected value for: " & get_prefix(awaiting_value_for) & awaiting_value_for)
 
-                    echo double_dash_separator
-                    echo word
-                    if double_dash_separator and word == "--":
-                        force_bare = true
-                        echo "BARE"
+                    if dash_denotes_param and word == "--":
+                        if double_dash_separator:
+                            force_bare = true
+                        continue
+
+                    if split_on_colon and word.contains(":"):
+                        var c = word.find(":")
+                        words.insert(word[0 ..< c], next_word_index)
+                        words.insert(word[c + 1 ..< ^0], next_word_index + 1)
+                        continue
+                    elif split_on_equals and word.contains("="):
+                        var c = word.find("=")
+                        words.insert(word[0 ..< c], next_word_index)
+                        words.insert(word[c + 1 ..< ^0], next_word_index + 1)
                         continue
 
                     var name = word[1 ..< ^0].to_lower
@@ -989,8 +1014,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             name = name[1 ..< ^0]
                         elif name.len > 1:
                             for i, letter in name.pairs:
-                                no_await_value_check_until = next_word_index + i
-                                words.insert "-" & letter, no_await_value_check_until
+                                words.insert "-" & letter, next_word_index + i
+                            no_await_value_check_until = next_word_index + name.len + 1
                             continue
 
                     let found = `outer_param_names`.contains(name) and not is_bare(name)
@@ -1041,7 +1066,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             current_bare_index += 1
 
             if awaiting_value and not writing_to_seq:
-                parse_error("Expected value for: " & awaiting_value_for)
+                parse_error("Expected value for: " & get_prefix(awaiting_value_for) & awaiting_value_for)
 
             return (options, present)
 
@@ -1254,11 +1279,11 @@ macro get_options*(body: untyped): untyped =
     ##     nin:string              {. info("National Insurance Number") .}
     ##
     ## if options.nin.len != 9:
-    ##     echo "Must supply valid NIN"
+    ##     report "Must supply valid NIN"
     ##     quit(1)
     ##
     ## if options.age < 13 or options.age > 19:
-    ##     echo "Not a teenager!"
+    ##     report "Not a teenager!"
     ##     quit(1)
     var options, _ = quote do:
         get_options_and_supplied(`body`)[0]
@@ -1266,9 +1291,9 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "--age 2 --here --there --big 10 --name \"Joe Random\" 5 --letter z 10 20 -- -xy foo"
+    DEBUG_ARGS = "--age:2 --here --there --big 10 --name \"Joe Random\" 5 --letter=f "
 
-    simple_parseopt.config: no_slash.dash_dash_parameters.dash_dash_separator
+    config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
 
     var (options, is_set) = get_options_and_supplied:
         name = "Default Name"
