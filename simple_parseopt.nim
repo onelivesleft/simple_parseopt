@@ -1024,11 +1024,11 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Iain King\" -flat 5 -letter z bob"
+    DEBUG_ARGS = "-age 2 -here albert -there -big 10 -name \"Joe Random\" -flat 5 -letter z bob"
 
     config: no_slash
 
-    var options, is_set = get_options_and_supplied:
+    var (options, is_set) = get_options_and_supplied:
         name = "Default Name"
         toggle = false
         letter = 'a'
@@ -1040,13 +1040,5 @@ when DEBUG:
         flat:uint = 2
         hello:string
 
-    echo options.repr
     prettify("Options", options, true)
-    prettify("Present", is_set.repr)
-
-#template ok {. pragma .}
-#template min(bound: int) {. pragma .}
-#
-#dump_tree:
-#    x = 1 {.alias("x", "y", "z").}
-#    y:int {. info("A Y and only a Y") .}
+    prettify("Present", is_set)
