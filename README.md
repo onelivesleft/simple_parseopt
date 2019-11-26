@@ -95,7 +95,7 @@ All of these will work:
 foo -name "Joe Random" -active
 foo /active /letter Z /flat 100
 foo /hello Greetings! -big 100 /small 20
-```s
+```
 
 ---
 
