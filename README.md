@@ -3,90 +3,145 @@ Nim module which provides clean, zero-effort command line parsing
 
 ---
 
-## Use
+## Basic Use
 
 This module gives you two ways to parse the command line: `get_options` and `get_options_and_supplied`
 
-At it's simplest, declare a block like this:
+
+### Parsing with `get_options`
+
+At its simplest, declare a block like this:
 
 ```nim
 # foo.nim
 
 let options = get_options:
-    name = "Default Name"
-    toggle = false
-    letter = 'a'
-    age = 1
-    here = true
-    there = false
-    big:float64 = 1.1
-    small:float = 2.2
-    flat:uint = 2
+    name          = "Default Name"
+    active        = false
+    letter        = 'a'
+    age           = 1
+    big:float64   = 1.1
+    small:float   = 2.2
+    flat:uint     = 2
     hello:string
+
+echo options.name & " is " & options.age.repr & " years old!"
 ```
 
-Notice it follows the same syntax as a `var` block.  `options` will be set to an `object` with fields as described in the block.  Each field will also be a command-line parameter; bools will toggle, while other fields will take a value argument.
+Notice it follows the same syntax as a `var` block.
 
-The resulting `object` will also contain an `arugments` field, a `seq[string]` which contains all the bare arguments which were not one of the designated parameters.
+In the example `foo.nim` above, the variable `options` will be set to an `object` with fields as described in the `get_options` block.  Each field will also be set up as a command-line parameter for the user running the program to use; bools will toggle, while other fields will take a value argument.
 
 ```bash
-foo.exe -name "J. Random" -toggle -big 1011121.121498
+foo -name "J. Random" -toggle -big 1011121.121498
 ```
+
+This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, and set the `big` `float64` to `1011121.121498`
+
+#### Details
+
+The code above will translate into the following data structure:
+
+```nim
+type Options = object
+    name:string
+    active:bool
+    letter:char
+    age:int
+    big:float64
+    small:float
+    flat:uint
+    hello:string
+
+options = Options(name: "Default Name", active: false, letter: 'a', age: 1, big: 1.1, small: 2.2, flat: 2)
+```
+
+This will then be modified at runtime, using whatever parameters the user has supplied on the command line.
 
 ---
 
-`get_options_and_supplied` will return two objects: the first as above, but with a second which has identical field names, as bools.  For any field which the user has supplied the bool will be set to true:
+### Parsing with `get_options_and_supplied`
+
+Using a `get_options_and_supplied` block will behave just like `get_options`, except it will return a tuple of two objects.  The first is as detailed above.  The second object will have identical field names, but all its fields will be of type `bool`.
+
+Any field which the user has supplied on the command line will have its `bool` in the second object set to `true`.
 
 ```nim
 # foo.nim
 
-let (options, is_set) = get_options:
-    name = "Default Name"
-    toggle = false
-    letter = 'a'
-    age = 1
-    here = true
-    there = false
-    big:float64 = 1.1
-    small:float = 2.2
-    flat:uint = 2
+let (options, supplied) = get_options_and_supplied:
+    name          = "Default Name"
+    active        = false
+    letter        = 'a'
+    age           = 1
+    big:float64   = 1.1
+    small:float   = 2.2
+    flat:uint     = 2
     hello:string
 
-if is_set.age:
-    recalculate_ages(options.age)
+if supplied.name and supplied.age:
+    echo options.name & " is " & options.age.repr & " years old!"
 ```
 
 ---
 
-# Options
+# Default command-line syntax
+
+By default, each named parameter may be set on the command line by the user prefixing it with a `-` or a `/`.  For `bool` fields, this will toggle the field.  For other fields, the next argument on the command line is used to set the field.
+
+All of these will work:
+
+```bash
+foo -name "Joe Random" -active
+foo /active /letter Z /flat 100
+foo /hello Greetings! -big 100 /small 20
+```
+
+---
+
+# Settings
 
 You may tailor the parser with the following calls:
 
+## `no_dash()`
 
-* allow_dash(allow = true) [default: true]
+Disable parameter being identified by prefixing with `-`
 
-Treat arguments starting with `-` as parameter names.
+## `no_slash()`
 
-* allow_slash(allow = true) [default: true]
+Disable parameter being identified by prefixing with `/`
 
-Treat arguments starting with `/` as parameter names.
+## `require_double_dash()`
 
-* allow_repetition(allow = true) [default: false]
+Require that parameters which have more than one character in their name be prefixed with `--` instead of `-`. Single-character parameters may then be entered grouped together under one `-`
 
-Allow the same parameter name to appear more than once.
+## `allow_repetition()`
 
-* allow_errors(allow = true) [default: false]
+Allow the user to specify the same parameter more than once with reporting an error.
 
-Allow execution to continue despite an erroneous command line.
+## `allow_errors()`
 
-* strict_parameters(strict = true) [default: false]
+Allow program execution to continue after erroneous input.
 
-Do not allow bare arguments: only arguments which match the specified parameters are allowed.
+## `no_implicit_bare()`
 
-* manual_help(manual = true) [default:false]
+Do not automatically use the last `seq[string]` parameter to gather any bare parameters the user enters (they become erroneous instead)
 
-If this is not turned on then `-?`, `-h`, and `-help` parameters, if not provided by you, will display a simple help message detailing the available parameters.
+## `manual_help()`
+Disable automatic generation of help message when user enters `-?`, `-h` or `-help` (when you do not include them as parameters)
 
-* help_info(text: string) [default: "Available parameters:"]
+## `help_text(text: string, footer = "")`
 
-If `manual_help` is not enabled, then this text will be displayed at the start of the automatic help message.
+Set the text which is included in the auto-generated help-message when the user enters `-?`, `-h`, or `-help`.
+  * `text` is displayed at the top, before the parameters, and
+  * `footer` is displayed at the bottom, after them.
+
+Note: `help_text` may not be included in a `config:` chain
+
+## `config:`
+
+A helper macro which allows you to specify the above options (except `help_text`) as a call chain.  For example:
+
+```nim
+config: no_slash.require_double_dash.allow_repetition
+```
