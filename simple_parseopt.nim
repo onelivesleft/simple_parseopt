@@ -4,12 +4,11 @@ import macros, tables, os, strutils
 # @TODO:
 #
 #  {. alias .}
-#  {. info .}
 #  {. len .}
 #  {. required .}
 #  seq = @[] initializer
+#  bare after --
 #
-# use_double_dash
 # automatic_help upgrade
 # param:value / param=value
 
@@ -36,6 +35,7 @@ var
     dash_denotes_param = true
     slash_denotes_param = true
     use_double_dash = false
+    double_dash_separator = false
     implicit_bare = true
     quit_on_error = true
     automatic_help = true
@@ -49,7 +49,7 @@ macro config*(body: untyped): untyped =
     ##
     ## Example:
     ##
-    ##     config: no_slash.require_double_dash.strict_parameters
+    ##     config: no_slash.require_double_dash.allow_repetition
     ##
 
     proc check_for_help_text(node: Nim_Node): Nim_Node =
@@ -94,12 +94,17 @@ proc no_slash*() =
     ## Disable parameter being identified by prefixing with `/`
     slash_denotes_param = false
 
-proc require_double_dash*() =
+proc dash_dash_parameters*() =
     ## Require that parameters which have more than one character in their name
     ## be prefixed with `--` instead of `-`.
     ## Single-character parameters may then be entered grouped together under
     ## one `-`
     use_double_dash = true
+
+proc dash_dash_separator*() =
+    ## A `--` on its own will disable parameter names on every argument
+    ## after it; they will all be treate as bare.
+    double_dash_separator = true
 
 proc allow_repetition*() =
     ## Allow the user to specify the same parameter more than once with reporting
@@ -940,6 +945,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 awaiting_value_for = ""
                 writing_to_seq = false
                 current_bare_index = 0
+                no_await_value_check_until = 0
+                force_bare = false
 
             if implicit_bare:
                 var last_seq_string = -1
@@ -955,17 +962,37 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     `outer_bare_indexes`.add(last_seq_string)
 
             when DEBUG:
-                let words:seq[string] = parse_cmd_line(DEBUG_ARGS)
+                var words:seq[string] = parse_cmd_line(DEBUG_ARGS)
             else:
-                let words:seq[string] = command_line_params()
-            for word in words:
-                if (dash_denotes_param and word.starts_with("-")) or (slash_denotes_param and word.starts_with("/")):
+                var words:seq[string] = command_line_params()
+            var next_word_index = 0
+            while next_word_index < words.len:
+                let word = words[next_word_index]
+                next_word_index += 1
+                if ((dash_denotes_param and word.starts_with("-")) or (slash_denotes_param and word.starts_with("/"))) and not force_bare:
                     if writing_to_seq:
                         writing_to_seq = false
-                    elif awaiting_value:
+                    elif awaiting_value and next_word_index > no_await_value_check_until:
                         parse_error("Expected value for: " & awaiting_value_for)
 
+                    echo double_dash_separator
+                    echo word
+                    if double_dash_separator and word == "--":
+                        force_bare = true
+                        echo "BARE"
+                        continue
+
                     var name = word[1 ..< ^0].to_lower
+
+                    if use_double_dash:
+                        if name.starts_with("-"):
+                            name = name[1 ..< ^0]
+                        elif name.len > 1:
+                            for i, letter in name.pairs:
+                                no_await_value_check_until = next_word_index + i
+                                words.insert "-" & letter, no_await_value_check_until
+                            continue
+
                     let found = `outer_param_names`.contains(name) and not is_bare(name)
                     if not found:
                         if automatic_help and (name == "help" or name == "h" or name == "?"):
@@ -1239,9 +1266,9 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "-age 2 -here -there -big 10 -name \"Joe Random\" 5 -letter z 10 20 -h"
+    DEBUG_ARGS = "--age 2 --here --there --big 10 --name \"Joe Random\" 5 --letter z 10 20 -- -xy foo"
 
-    config: no_slash
+    simple_parseopt.config: no_slash.dash_dash_parameters.dash_dash_separator
 
     var (options, is_set) = get_options_and_supplied:
         name = "Default Name"
@@ -1254,6 +1281,8 @@ when DEBUG:
         small:float = 2.2
         flat:uint = 2
         hello:string
+        x = ""
+        y = ""
         args:seq[string]
 
 

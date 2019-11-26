@@ -143,5 +143,5 @@ Note: `help_text` may not be included in a `config:` chain
 A helper macro which allows you to specify the above options (except `help_text`) as a call chain.  For example:
 
 ```nim
-config: no_slash.require_double_dash.allow_repetition
+simple_parseopt.config: no_slash.require_double_dash.allow_repetition
 ```
