@@ -6,6 +6,7 @@ import macros, tables, os, strutils
 #  {. alias .}
 #  {. info .}
 #  {. len .}
+#  {. required .}
 #  seq = @[] initializer
 #
 # use_double_dash
@@ -22,6 +23,7 @@ const
     OFFSET_PRESENT_NAME = "param_present_offset"
     VAR_TYPE_NAME = "param_type"
     VAR_DEFAULT_NAME = "param_defaults"
+    VAR_DESCRIPTION_NAME = "param_descriptions"
     VAR_BARE_NAME = "param_bare_indexes"
     PROC_NAME = "parse"
 
@@ -317,26 +319,26 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
                 if child.kind == nnk_ident and child.str_val == "bare":
                     param.accepts_bare = true
                 elif child.kind != nnk_call or len(child) < 2 or child[0].kind != nnk_ident:
-                    error("Invalid pragma node", child)
+                    error("invalid pragma", child)
                 elif child[0].str_val == "alias":
                     for i, alias in child.children.pairs:
                         if i > 0:
                             if alias.kind != nnk_str_lit:
-                                error("Invalid pragma node", alias)
+                                error("invalid pragma", alias)
                             else:
                                 param.alias.add alias.str_val
                 elif child[0].str_val == "info":
                     if child[1].kind != nnk_str_lit:
-                        error("Invalid pragma node", child[1])
+                        error("invalid pragma", child[1])
                     else:
                         param.description = child[1].str_val
                 elif child[0].str_val == "len":
                     if child[1].kind != nnk_int_lit:
-                        error("Invalid pragma node", child[1])
+                        error("invalid pragma", child[1])
                     else:
                         param.seq_len = cast[int](child[1].int_val)
                 else:
-                    error("Invalid pragma node")
+                    error("invalid pragma", pragma_node)
 
     return (param, name)
 
@@ -637,6 +639,16 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     ident("new_seq"),
                     ident("string")))))
 
+    var param_description_node = new_nim_node(nnk_var_section)
+    param_description_node.add(
+        nnk_ident_defs.new_tree(
+            ident(VAR_DESCRIPTION_NAME),
+            new_empty_node(),
+            nnk_call.new_tree(
+                nnk_bracket_expr.new_tree(
+                    ident("new_seq"),
+                    ident("string")))))
+
     var bare_index_node = new_nim_node(nnk_var_section)
     bare_index_node.add(
         nnk_ident_defs.new_tree(
@@ -660,6 +672,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let outer_param_type = ident(VAR_TYPE_NAME)
     let outer_param_default = ident(VAR_DEFAULT_NAME)
     let outer_bare_indexes = ident(VAR_BARE_NAME)
+    let outer_param_descriptions = ident(VAR_DESCRIPTION_NAME)
 
 
     var proc_node = quote do:
@@ -699,22 +712,36 @@ macro get_options_and_supplied*(body: untyped): untyped =
             proc do_help() =
                 echo help_text_pre
                 var prefix = ""
+                var extra_prefix = ""
                 if dash_denotes_param:
                     prefix = "-"
                 elif slash_denotes_param:
                     prefix = "/"
                 var letters = 0
-                for i, name in `outer_param_names`[0 ..< ^1]:
+                proc full_name(index: int): string =
+                    if `outer_bare_indexes`.contains(index):
+                        return ""
+                    var name = `outer_param_names`[index]
+                    # if aliases contains... blahblahblah
+                    return name
+                for i, _ in `outer_param_names`:
+                    let name = full_name(i)
                     if name.len > letters: letters = name.len
-                for i, name in `outer_param_names`[0 ..< ^1]:
-                    var default = `outer_param_default`[i]
-                    if default == "" or `outer_param_type`[i] == `int_param_bool`:
-                        echo " ", prefix, name
+                for i, name in `outer_param_names`:
+                    let display_name = full_name(i)
+                    if display_name == "": continue
+                    let postfix = `outer_param_descriptions`[i]
+                    if name.len > 1 and use_double_dash:
+                        extra_prefix = "-"
+                    else:
+                        extra_prefix = ""
+                    if postfix == "":
+                        echo " ", prefix, display_name
                     else:
                         var spacer = ""
-                        while name.len + spacer.len < letters:
+                        while display_name.len + spacer.len < letters:
                             spacer = spacer & " "
-                        echo " ", prefix, name, spacer, "     [", default, "]"
+                        echo " ", prefix, display_name, spacer, "  ", postfix
                 echo ""
                 if help_text_post != "":
                     echo help_text_post
@@ -1011,6 +1038,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     result[1].add param_present_node
     result[1].add param_type_node
     result[1].add param_default_node
+    result[1].add param_description_node
     result[1].add bare_index_node
     result[1].add offset_node
     result[1].add proc_node
@@ -1141,6 +1169,14 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     ident("add")),
                 new_str_lit_node(default)))
 
+    template add_description(name: string, description: string) =
+        offset_node.add(
+            nnk_call.new_tree(
+                nnk_dot_expr.new_tree(
+                    ident(VAR_DESCRIPTION_NAME),
+                    ident("add")),
+                new_str_lit_node(description)))
+
     template add_bare_index(index: int) =
         offset_node.add(
             nnk_call.new_tree(
@@ -1159,6 +1195,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
         add_name name
         add_type_lookup name, param.kind
         add_default_value name, string_from_param(param)
+        add_description name, param.description
         if param.accepts_bare:
             add_bare_index(i)
 
@@ -1202,15 +1239,15 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "-age 2 -here -there -big 10 -name \"Joe Random\" 5 -letter z -nums 10 20"
+    DEBUG_ARGS = "-age 2 -here -there -big 10 -name \"Joe Random\" 5 -letter z 10 20 -h"
 
-    config: no_slash.no_implicit_bare
+    config: no_slash
 
     var (options, is_set) = get_options_and_supplied:
         name = "Default Name"
         toggle = false
         letter = 'a'
-        age = 1
+        age = 1 {. info("How old they are") .}
         here = true
         there = false
         big:float64 = 1.1
