@@ -22,6 +22,7 @@ const
     VAR_DEFAULT_NAME = "param_defaults"
     VAR_DESCRIPTION_NAME = "param_descriptions"
     VAR_BARE_NAME = "param_bare_indexes"
+    VAR_REQUIRED_NAME = "param_requried"
     PROC_NAME = "parse"
 
 when isMainModule:
@@ -235,6 +236,7 @@ type Param = object
     accepts_bare: bool
     description: string
     alias: seq[string]
+    required: bool
     seq_len: int
     case kind: ParamKind
     of param_undefined:    discard
@@ -332,12 +334,22 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
         of param_seq_float:  param = Param(name: name, kind: param_seq_float,  seq_float_value:  @[])
 
     if pragma_node != nil:
-        if pragma_node.kind == nnk_ident and pragma_node.str_val == "bare":
-            param.accepts_bare = true
+        if pragma_node.kind == nnk_ident:
+            if pragma_node.str_val == "bare":
+                param.accepts_bare = true
+            elif pragma_node.str_val == "required":
+                param.required = true
+            else:
+                error("invalid pragma", pragma_node)
         else:
             for child in pragma_node.children:
-                if child.kind == nnk_ident and child.str_val == "bare":
-                    param.accepts_bare = true
+                if child.kind == nnk_ident:
+                    if child.str_val == "bare":
+                        param.accepts_bare = true
+                    elif child.str_val == "required":
+                        param.required = true
+                    else:
+                        error("invalid pragma", child)
                 elif child.kind != nnk_call or len(child) < 2 or child[0].kind != nnk_ident:
                     error("invalid pragma", child)
                 elif child[0].str_val == "alias":
@@ -679,6 +691,16 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     ident("new_seq"),
                     ident("int")))))
 
+    var param_required_node = new_nim_node(nnk_var_section)
+    param_required_node.add(
+        nnk_ident_defs.new_tree(
+            ident(VAR_REQUIRED_NAME),
+            new_empty_node(),
+            nnk_call.new_tree(
+                nnk_bracket_expr.new_tree(
+                    ident("new_seq"),
+                    ident("int")))))
+
     var offset_node = new_nim_node(nnk_block_stmt)
     offset_node.add new_empty_node()
     offset_node.add new_nim_node(nnk_stmt_list)
@@ -693,6 +715,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let outer_param_default = ident(VAR_DEFAULT_NAME)
     let outer_bare_indexes = ident(VAR_BARE_NAME)
     let outer_param_descriptions = ident(VAR_DESCRIPTION_NAME)
+    let outer_required_indexes = ident(VAR_REQUIRED_NAME)
 
 
     var proc_node = quote do:
@@ -1068,6 +1091,15 @@ macro get_options_and_supplied*(body: untyped): untyped =
             if awaiting_value and not writing_to_seq:
                 parse_error("Expected value for: " & get_prefix(awaiting_value_for) & awaiting_value_for)
 
+            var missing = false
+            for index in `outer_required_indexes`:
+                let name = `outer_param_names`[index]
+                if not is_present(addr present, name):
+                    echo "Value required for: " & get_prefix(name) & name
+                    missing = true
+            if missing:
+                parse_error("Missing required value(s).")
+
             return (options, present)
 
 
@@ -1091,6 +1123,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     result[1].add param_type_node
     result[1].add param_default_node
     result[1].add param_description_node
+    result[1].add param_required_node
     result[1].add bare_index_node
     result[1].add offset_node
     result[1].add proc_node
@@ -1237,6 +1270,14 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     ident("add")),
                 new_int_lit_node(index)))
 
+    template add_required(index: int) =
+        offset_node.add(
+            nnk_call.new_tree(
+                nnk_dot_expr.new_tree(
+                    ident(VAR_REQUIRED_NAME),
+                    ident("add")),
+                new_int_lit_node(index)))
+
 
     for i, name in params_in_order.pairs:
         let param = params[name]
@@ -1248,6 +1289,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
         add_type_lookup name, param.kind
         add_default_value name, string_from_param(param)
         add_description name, param.description
+        if param.required:
+            add_required(i)
         if param.accepts_bare:
             add_bare_index(i)
 
@@ -1291,7 +1334,7 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "--age:2 --here --there --big 10 --name \"Joe Random\" 5 --letter=f "
+    DEBUG_ARGS = "--age:2 --here --there --big 10 --name \"Joe Random\" 5 --letter=f -x 1 --hello there"
 
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
 
@@ -1305,8 +1348,8 @@ when DEBUG:
         big:float64 = 1.1
         small:float = 2.2
         flat:uint = 2
-        hello:string
-        x = ""
+        hello:string  {. required .}
+        x:int {. required .}
         y = ""
         args:seq[string]
 
