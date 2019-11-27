@@ -5,7 +5,6 @@ import macros, tables, os, strutils
 #
 #  {. alias .}
 #  {. len .}
-#  {. required .}
 #  seq = @[] initializer
 #
 # automatic_help upgrade
@@ -41,6 +40,7 @@ var
     quit_on_error = true
     automatic_help = true
     parameters_are_unique = true
+    bare_can_still_be_named = false
     help_text_pre = "Available parameters:\n"
     help_text_post = ""
 
@@ -134,6 +134,10 @@ proc no_implicit_bare*() =
     ## bare parameters the user enters (instead they become erroneous)
     implicit_bare = false
 
+proc bare_retain_name*() =
+    ## Allows user to set bare parameters by name.
+    bare_can_still_be_named = true
+
 proc manual_help*() =
     ## Disable automatic generation of help message when user enters
     ## `-?`, `-h` or `-help` (when you do not include them as parameters)
@@ -157,7 +161,7 @@ template print(s: string) =
     echo s
 
 when DEBUG:
-    var DEBUG_ARGS = "-name \"name has changed!\" -toggle"
+    var DEBUG_ARGS = ""
     proc prettify[T](title: string, data: T, new_section = false) =
         if new_section:
             print "--------------"
@@ -335,36 +339,36 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
 
     if pragma_node != nil:
         if pragma_node.kind == nnk_ident:
-            if pragma_node.str_val == "bare":
+            if pragma_node.str_val == "bare" or pragma_node.str_val == "positional":
                 param.accepts_bare = true
-            elif pragma_node.str_val == "required":
+            elif pragma_node.str_val == "need" or pragma_node.str_val == "required":
                 param.required = true
             else:
                 error("invalid pragma", pragma_node)
         else:
             for child in pragma_node.children:
                 if child.kind == nnk_ident:
-                    if child.str_val == "bare":
+                    if child.str_val == "bare" or child.str_val == "positional":
                         param.accepts_bare = true
-                    elif child.str_val == "required":
+                    elif child.str_val == "need" or child.str_val == "required":
                         param.required = true
                     else:
                         error("invalid pragma", child)
                 elif child.kind != nnk_call or len(child) < 2 or child[0].kind != nnk_ident:
                     error("invalid pragma", child)
-                elif child[0].str_val == "alias":
+                elif child[0].str_val == "aka" or child[0].str_val == "alias":
                     for i, alias in child.children.pairs:
                         if i > 0:
                             if alias.kind != nnk_str_lit:
                                 error("invalid pragma", alias)
                             else:
                                 param.alias.add alias.str_val
-                elif child[0].str_val == "info":
+                elif child[0].str_val == "info" or child[0].str_val == "description":
                     if child[1].kind != nnk_str_lit:
                         error("invalid pragma", child[1])
                     else:
                         param.description = child[1].str_val
-                elif child[0].str_val == "len":
+                elif child[0].str_val == "len" or child[0].str_val == "count":
                     if child[1].kind != nnk_int_lit:
                         error("invalid pragma", child[1])
                     else:
@@ -576,12 +580,29 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ##   x:int32
     ##   x:int = 20
     ##
-    ## You may also add pragmas to the end of any line:
+    ## You may also add pragmas to the end of any line to modify parameter
+    ## behaviour.  Each pragma has a more verbose alias, if you prefer that
+    ## style of code (listed after # below)
     ##
-    ##   (. info("Description") .}  = description of the parameter
-    ##   {. alias("a", "b", ...) .} = aliases for the parameter
-    ##   {. bare .}                 = accepts bare parameters instead of named
-    ##   {. len(i) .}               = on a seq field, sets desired length
+    ##   {. info("text") .}       # description()
+    ##   Description of the parameter shown in help text.
+    ##
+    ##   {. aka("a", "b", ...) .} # alias()
+    ##   Aliases for the parameter - user may use these as parameters;
+    ##   they will write to the variable.
+    ##
+    ##   {. bare .}               # positional
+    ##   Accepts a bare, positional argument (an argument which has not
+    ##   been prefixed with a parameter name).  User will not be able to
+    ##   refer to the argmuent with its parameter name.
+    ##
+    ##   {. need .}               # required
+    ##   Parameter must be supplied by user or an error is shown.
+    ##
+    ##   {. len(i) .}             # count()
+    ##   Place on a seq field to require that many values be set to it.
+    ##   For example:
+    ##     position:seq[float] {. len(3) .} # x y z
     ##
     ## If you specify any `seq[string]` fields then the last such field will
     ## be used to store all bare arguments.  (i.e. the last `seq[string]` is
@@ -712,7 +733,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let outer_param_offset = ident(OFFSET_NAME)
     let outer_param_present_offset = ident(OFFSET_PRESENT_NAME)
     let outer_param_type = ident(VAR_TYPE_NAME)
-    let outer_param_default = ident(VAR_DEFAULT_NAME)
+    let outer_param_default = ident(VAR_DEFAULT_NAME)  # Could be used to display defaults in do_help
     let outer_bare_indexes = ident(VAR_BARE_NAME)
     let outer_param_descriptions = ident(VAR_DESCRIPTION_NAME)
     let outer_required_indexes = ident(VAR_REQUIRED_NAME)
@@ -753,7 +774,9 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 return kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float
 
             template get_prefix(name: string): string =
-                if dash_denotes_param:
+                if is_bare(name) and not bare_can_still_be_named:
+                    ""
+                elif dash_denotes_param:
                     if use_double_dash and name.len > 1:
                         "--"
                     else:
@@ -767,7 +790,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 print help_text_pre
                 var letters = 0
                 proc full_name(index: int): string =
-                    if `outer_bare_indexes`.contains(index):
+                    if `outer_bare_indexes`.contains(index) and not bare_can_still_be_named:
                         return ""
                     var name = `outer_param_names`[index]
                     # if aliases contains... blahblahblah
@@ -1041,7 +1064,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             no_await_value_check_until = next_word_index + name.len + 1
                             continue
 
-                    let found = `outer_param_names`.contains(name) and not is_bare(name)
+                    let found = `outer_param_names`.contains(name) and (not is_bare(name) or bare_can_still_be_named)
                     if not found:
                         if automatic_help and (name == "help" or name == "h" or name == "?"):
                             do_help()
@@ -1334,9 +1357,9 @@ macro get_options*(body: untyped): untyped =
 
 
 when DEBUG:
-    DEBUG_ARGS = "--age:2 --here --there --big 10 --name \"Joe Random\" 5 --letter=f -x 1 --hello there"
+    DEBUG_ARGS = "--age:2 --here --there --big 10 --name \"Joe Random\" --letter=f -x 1 -h"
 
-    config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
+    config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals.bare_retain_name
 
     var (options, is_set) = get_options_and_supplied:
         name = "Default Name"
@@ -1348,7 +1371,7 @@ when DEBUG:
         big:float64 = 1.1
         small:float = 2.2
         flat:uint = 2
-        hello:string  {. required .}
+        hello:string  {. need, bare .}
         x:int {. required .}
         y = ""
         args:seq[string]
