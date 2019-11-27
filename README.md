@@ -1,5 +1,5 @@
 # simple_parseopt
-Nim module which provides clean, zero-effort command line parsing
+Nim module which provides clean, zero-effort command line parsing.
 
 ---
 
@@ -8,7 +8,7 @@ Nim module which provides clean, zero-effort command line parsing
 This module gives you two ways to parse the command line: `get_options` and `get_options_and_supplied`
 
 
-### Parsing with `get_options`
+**get_options**
 
 At its simplest, declare a block like this:
 
@@ -33,14 +33,14 @@ Notice it follows the same syntax as a `var` block.
 In the example `foo.nim` above, the variable `options` will be set to an `object` with fields as described in the `get_options` block.  Each field will also be set up as a command-line parameter for the user running the program to use; bools will toggle, while other fields will take a value argument.
 
 ```bash
-foo -name "J. Random" -toggle -big 1011121.121498
+foo -name "J. Random" -active -big 1011121.121498
 ```
 
 This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, and set the `big` `float64` to `1011121.121498`
 
-#### Details
+*Details*
 
-The code above will translate into the following data structure:
+The code above will translate into the equivalent of:
 
 ```nim
 type Options = object
@@ -54,13 +54,15 @@ type Options = object
     hello:string
 
 options = Options(name: "Default Name", active: false, letter: 'a', age: 1, big: 1.1, small: 2.2, flat: 2)
+
+parse_command_line_into(options)
 ```
 
-This will then be modified at runtime, using whatever parameters the user has supplied on the command line.
+Where `parse_command_line_into` is some hypothetical procedure which parses the user-supplied command line and sets fields in `options` appropriately.
 
 ---
 
-### Parsing with `get_options_and_supplied`
+**get_options_and_supplied**
 
 Using a `get_options_and_supplied` block will behave just like `get_options`, except it will return a tuple of two objects.  The first is as detailed above.  The second object will have identical field names, but all its fields will be of type `bool`.
 
@@ -85,7 +87,7 @@ if supplied.name and supplied.age:
 
 ---
 
-# Default command-line syntax
+## Default command-line syntax
 
 By default, each named parameter may be set on the command line by the user prefixing it with a `-` or a `/`.  For `bool` fields, this will toggle the field.  For other fields, the next argument on the command line is used to set the field.
 
@@ -99,49 +101,76 @@ foo /hello Greetings! -big 100 /small 20
 
 ---
 
-# Settings
+## Settings
 
 You may tailor the parser with the following calls:
 
-## `no_dash()`
 
-Disable parameter being identified by prefixing with `-`
+* **no_dash()**
 
-## `no_slash()`
+    Disable parameter being identified by prefixing with `-`
 
-Disable parameter being identified by prefixing with `/`
 
-## `require_double_dash()`
+* **no_slash()**
 
-Require that parameters which have more than one character in their name be prefixed with `--` instead of `-`. Single-character parameters may then be entered grouped together under one `-`
+    Disable parameter being identified by prefixing with `/`
 
-## `allow_repetition()`
 
-Allow the user to specify the same parameter more than once with reporting an error.
+* **dash_dash_parameters()**
 
-## `allow_errors()`
+    Require that parameters which have more than one character in their name be prefixed with `--` instead of `-`. Single-character parameters may then be entered grouped together under one `-`
 
-Allow program execution to continue after erroneous input.
+* **dash_dash_separator()**
 
-## `no_implicit_bare()`
+    `--` on its own in the command line will disable parameter names on every argument after it; they will all be treated as bare
 
-Do not automatically use the last `seq[string]` parameter to gather any bare parameters the user enters (they become erroneous instead)
+* **value_after_colon()**
 
-## `manual_help()`
-Disable automatic generation of help message when user enters `-?`, `-h` or `-help` (when you do not include them as parameters)
+    Allow the user to specify parameter & value together, separated by a `:`
 
-## `help_text(text: string, footer = "")`
+    e.g. `-param:value`
 
-Set the text which is included in the auto-generated help-message when the user enters `-?`, `-h`, or `-help`.
-  * `text` is displayed at the top, before the parameters, and
-  * `footer` is displayed at the bottom, after them.
+    Note this will not play nicely with quoted string values.
 
-Note: `help_text` may not be included in a `config:` chain
+* **value_after_equals()**
 
-## `config:`
+    Allow the user to specify parameter & value together, separated by a `=`
 
-A helper macro which allows you to specify the above options (except `help_text`) as a call chain.  For example:
+    e.g. `-param=value`
 
-```nim
-simple_parseopt.config: no_slash.require_double_dash.allow_repetition
-```
+    Note this will not play nicely with quoted string values.
+
+* **allow_repetition()**
+
+    Allow the user to specify the same parameter more than once without reporting an error.
+
+* **allow_errors()**
+
+    Allow program execution to continue after erroneous input.
+
+* **no_implicit_bare()**
+
+    Do not automatically use the last `seq[string]` parameter to gather any bare parameters the user enters (they become erroneous instead)
+
+* **can_name_bare()**
+
+    Allows user to set bare parameters by name.
+
+* **manual_help()**
+
+    Disable automatic generation of help message when user enters `-?`, `-h` or `-help` (when you do not include them as parameters)
+
+* **help_text(text: string, footer = "")**
+
+    Set the text which is included in the auto-generated help-message when the user enters `-?`, `-h`, or `-help`.
+
+    * `text` is displayed at the top, before the parameters, and
+    * `footer` is displayed at the bottom, after them.
+
+    Note: `help_text` may not be included in a `config:` chain
+
+* **config:**
+
+    A helper macro which allows you to specify the above options (except `help_text`) as a call chain.  For example:
+
+    `simple_parseopt.config: no_slash.dash_dash_parameters.allow_repetition`
