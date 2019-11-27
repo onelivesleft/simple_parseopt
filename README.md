@@ -160,17 +160,26 @@ You may tailor the parser with the following calls:
 
     Disable automatic generation of help message when user enters `-?`, `-h` or `-help` (when you do not include them as parameters)
 
+
+* **command_name(name: string)**
+
+    Set the name of the executable, for use in the auto-generated
+    help-message when the user enters `-?`, `-h`, or `-help`.
+
+    Note: `command_name` may not be included in a `config:` chain
+
+
 * **help_text(text: string, footer = "")**
 
     Set the text which is included in the auto-generated help-message when the user enters `-?`, `-h`, or `-help`.
 
-    * `text` is displayed at the top, before the parameters, and
+    * `text` is displayed at the top, before the parameters.
     * `footer` is displayed at the bottom, after them.
 
     Note: `help_text` may not be included in a `config:` chain
 
 * **config:**
 
-    A helper macro which allows you to specify the above options (except `help_text`) as a call chain.  For example:
+    A helper macro which allows you to specify the above options (except `help_text` and `command_name`) as a call chain.  For example:
 
     `simple_parseopt.config: no_slash.dash_dash_parameters.allow_repetition`

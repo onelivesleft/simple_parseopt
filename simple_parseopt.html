@@ -851,8 +851,10 @@ function main() {
     title="can_name_bare()"><wbr />can_<wbr />name_<wbr />bare<span class="attachedType"></span></a></li>
   <li><a class="reference" href="#manual_help"
     title="manual_help()"><wbr />manual_<wbr />help<span class="attachedType"></span></a></li>
+  <li><a class="reference" href="#command_name%2Cstring"
+    title="command_name(name: string)"><wbr />command_<wbr />name<span class="attachedType"></span></a></li>
   <li><a class="reference" href="#help_text%2Cstring%2Cstring"
-    title="help_text(text: string; footer = &quot;&quot;)"><wbr />help_<wbr />text<span class="attachedType"></span></a></li>
+    title="help_text(text, footer = &quot;&quot;)"><wbr />help_<wbr />text<span class="attachedType"></span></a></li>
 
   </ul>
 </li>
@@ -974,13 +976,19 @@ foo /hello Greetings! -big 100 /small 20
 </li>
 <li><strong>manual_help()</strong><blockquote><p>Disable automatic generation of help message when user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt> or <tt class="docutils literal"><span class="pre">-help</span></tt> (when you do not include them as parameters)</p></blockquote>
 </li>
-<li><strong>help_text(text: string, footer = &quot;&quot;)</strong><blockquote><p>Set the text which is included in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.<ul class="simple"><li><tt class="docutils literal"><span class="pre">text</span></tt> is displayed at the top, before the parameters, and</li>
+</ul>
+<ul class="simple"><li><strong>command_name(name: string)</strong><blockquote><p><p>Set the name of the executable, for use in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.</p>
+<p>Note: <tt class="docutils literal"><span class="pre">command_name</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
+</p></blockquote>
+</li>
+</ul>
+<ul class="simple"><li><strong>help_text(text: string, footer = &quot;&quot;)</strong><blockquote><p>Set the text which is included in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.<ul class="simple"><li><tt class="docutils literal"><span class="pre">text</span></tt> is displayed at the top, before the parameters.</li>
 <li><tt class="docutils literal"><span class="pre">footer</span></tt> is displayed at the bottom, after them.</li>
 </ul>
 <p>Note: <tt class="docutils literal"><span class="pre">help_text</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
 </p></blockquote>
 </li>
-<li><strong>config:</strong><blockquote><p><p>A helper macro which allows you to specify the above options (except <tt class="docutils literal"><span class="pre">help_text</span></tt>) as a call chain.  For example:</p>
+<li><strong>config:</strong><blockquote><p><p>A helper macro which allows you to specify the above options (except <tt class="docutils literal"><span class="pre">help_text</span></tt> and <tt class="docutils literal"><span class="pre">command_name</span></tt>) as a call chain.  For example:</p>
 <p><tt class="docutils literal"><span class="pre">simple_parseopt.config: no_slash.dash_dash_parameters.allow_repetition</span></tt></p>
 </p></blockquote>
 </li>
@@ -1118,18 +1126,31 @@ class="link-seesrc" target="_blank">Source</a>
 <a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L149" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
-<a id="help_text,string,string"></a>
-<dt><pre><span class="Keyword">proc</span> <a href="#help_text%2Cstring%2Cstring"><span class="Identifier">help_text</span></a><span class="Other">(</span><span class="Identifier">text</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">;</span> <span class="Identifier">footer</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">)</span> <span><span class="Other">{</span><span class="Other pragmadots">...</span><span class="Other">}</span></span><span class="pragmawrap"><span class="Other">{.</span><span class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span><span class="Other">.}</span></span></pre></dt>
+<a id="command_name,string"></a>
+<dt><pre><span class="Keyword">proc</span> <a href="#command_name%2Cstring"><span class="Identifier">command_name</span></a><span class="Other">(</span><span class="Identifier">name</span><span class="Other">:</span> <span class="Identifier">string</span><span class="Other">)</span> <span><span class="Other">{</span><span class="Other pragmadots">...</span><span class="Other">}</span></span><span class="pragmawrap"><span class="Other">{.</span><span class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span><span class="Other">.}</span></span></pre></dt>
 <dd>
 
-<p>Set the text which is included in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.</p>
-<p><tt class="docutils literal"><span class="pre">text</span></tt> is displayed at the top, before the parameters, and <tt class="docutils literal"><span class="pre">footer</span></tt> is displayed at the bottom, after them.</p>
-<p>Note: <tt class="docutils literal"><span class="pre">help_text</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
+<p>Set the name of the executable, for use in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.</p>
+<p>Note: <tt class="docutils literal"><span class="pre">command_name</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
 
 &nbsp;&nbsp;<a
 href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L155"
 class="link-seesrc" target="_blank">Source</a>
 <a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L155" class="link-seesrc" target="_blank" >Edit</a>
+
+</dd>
+<a id="help_text,string,string"></a>
+<dt><pre><span class="Keyword">proc</span> <a href="#help_text%2Cstring%2Cstring"><span class="Identifier">help_text</span></a><span class="Other">(</span><span class="Identifier">text</span><span class="Other">,</span> <span class="Identifier">footer</span> <span class="Other">=</span> <span class="StringLit">&quot;&quot;</span><span class="Other">)</span> <span><span class="Other">{</span><span class="Other pragmadots">...</span><span class="Other">}</span></span><span class="pragmawrap"><span class="Other">{.</span><span class="pragma"><span class="Identifier">raises</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span><span class="Other">,</span> <span class="Identifier">tags</span><span class="Other">:</span> <span class="Other">[</span><span class="Other">]</span></span><span class="Other">.}</span></span></pre></dt>
+<dd>
+
+<p>Set the text which is included in the auto-generated help-message when the user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt>, or <tt class="docutils literal"><span class="pre">-help</span></tt>.</p>
+<p><tt class="docutils literal"><span class="pre">text</span></tt> is displayed at the top, before the parameters. <tt class="docutils literal"><span class="pre">footer</span></tt> is displayed at the bottom, after them.</p>
+<p>Note: <tt class="docutils literal"><span class="pre">help_text</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
+
+&nbsp;&nbsp;<a
+href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L162"
+class="link-seesrc" target="_blank">Source</a>
+<a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L162" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -1198,9 +1219,9 @@ if options.age &lt; 13 or options.age &gt; 19:
 </pre></p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L573"
+href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L583"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L573" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L583" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="get_options.m,untyped"></a>
@@ -1249,9 +1270,9 @@ if options.age &lt; 13 or options.age &gt; 19:
 </pre></p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L1413"
+href="https://github.com/onelivesleft/simple_parseopt.git/tree/version-1-0/simple_parseopt.nim#L1547"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L1413" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt.git/edit/devel/simple_parseopt.nim#L1547" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -1264,7 +1285,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2019-11-27 12:19:03 UTC</small>
+        <small>Made with Nim. Generated: 2019-11-27 17:21:45 UTC</small>
       </div>
     </div>
   </div>
