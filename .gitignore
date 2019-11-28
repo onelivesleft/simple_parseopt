@@ -1,4 +1,4 @@
 nimcache/
-*.exe
 *.tmp
-scratch.nim
+scratch.*
+simple_parseopt.exe
