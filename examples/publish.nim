@@ -10,7 +10,10 @@ let options = get_options:
     nimble = false
 
 if options.major and options.minor:
-    quit("You cannot increase both major and minor versions")
+    quit "You cannot increase both major and minor versions"
+
+if options.nimble and (options.major or options.minor):
+    quit "Cannot update version while only publishing to nimble."
 
 
 if not os.exists_dir("src"):
@@ -38,8 +41,6 @@ proc publish_to_nimble() =
     check_exec_cmd "nimble publish", "Error publishing to nimble.  You may use \"publish -nimble\" to attempt this step again."
 
 if options.nimble:
-    if options.major or options.minor:
-        quit "Cannot update version while only publishing to nimble."
     publish_to_nimble()
     quit(0)
 
