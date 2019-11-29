@@ -67,10 +67,7 @@ proc alter_version(file_path, line_starts_with, replace_with: string) =
     let tmp_path = file_path.change_file_ext(".tmp")
 
     let in_file = open(file_path)
-    defer: in_file.close()
-
     let out_file = open(tmp_path, fm_write)
-    defer: out_file.close()
 
     var line: string
     while in_file.read_line(line):
@@ -79,14 +76,17 @@ proc alter_version(file_path, line_starts_with, replace_with: string) =
         else:
             out_file.write_line(line)
 
+    in_file.close()
+    out_file.close()
     os.remove_file(file_path)
     os.move_file(tmp_path, file_path)
 
-alter_version "src/simple_parseopt.nim", "const VERSION", "const VERSION = \"" & version & "\""
+alter_version "src/simple_parseopt.nim", "const version", "const version = \"" & version & "\""
 alter_version "simple_parseopt.nimble",  "version ",      "version       = \"" & version & "\""
 
+
 echo "\nGenerating docs..."
-var error = os.exec_shell_cmd("bin/make -d README.md -version " & version)
+var error = os.exec_shell_cmd(os.join_path("bin", "make") & " -d README.md -version " & version)
 
 if error != 0:
     quit "\nCould not generate `simple_parseopt.html`: " & error.repr
