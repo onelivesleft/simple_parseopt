@@ -80,7 +80,7 @@ if options.make_docs:
 
     echo "\nGenerating doc..."
     var error = os.exec_shell_cmd(
-        "nim doc2 --git.url:https://github.com/onelivesleft/simple_parseopt --git.commit:" & version & " " & path)
+        "nim doc2 --hints:off --git.url:https://github.com/onelivesleft/simple_parseopt --git.commit:" & version & " " & path)
 
     if error != 0:
         quit "\nCould not generate `simple_parseopt.html`: " & error.repr
@@ -100,7 +100,7 @@ if options.make_make:
         quit "Could not find output folder"
 
     echo "\nCompiling make.nim..."
-    var error = os.exec_shell_cmd("nim -o:" & options.bin & " c  " & path)
+    var error = os.exec_shell_cmd("nim --hints:off -o:" & options.bin & " c  " & path)
 
     if error != 0:
         quit "\nError compiling `make.nim`: " & error.repr
@@ -115,7 +115,7 @@ if options.make_examples:
     for file in glob.walk_glob("*", options.examples):
         if file != "make.nim":
             echo "\nCompiling " & file & "..."
-            var error = os.exec_shell_cmd("nim -o:" & options.bin & " c  " & os.join_path(options.examples, file))
+            var error = os.exec_shell_cmd("nim --hints:off -o:" & options.bin & " c  " & os.join_path(options.examples, file))
 
             if error != 0:
                 quit "\nError compiling `" & file & "`: " & error.repr

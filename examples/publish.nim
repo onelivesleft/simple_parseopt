@@ -16,8 +16,8 @@ if options.major and options.minor:
 if not os.exists_dir("src"):
     os.set_current_dir("..")
 let simple_parseopt_path = os.join_path("src/simple_parseopt.nim")
-if not os.exists_file(path):
-    quit "Could not find simple_parseopt.nim"
+if not os.exists_file(simple_parseopt_path):
+    quit "Could not find `simple_parseopt.nim`"
 
 
 var version = block:
@@ -58,6 +58,10 @@ echo "New version:     v" & version
 
 
 proc alter_version(file_path, line_starts_with, replace_with: string) =
+    if not os.file_exists(file_path):
+        quit "Could not find `" & file_path.extract_filename & "`"
+
+
     echo "\nUpdating `" & file_path.extract_filename & "` version..."
 
     let tmp_path = file_path.change_file_ext(".tmp")
@@ -70,16 +74,22 @@ proc alter_version(file_path, line_starts_with, replace_with: string) =
 
     var line: string
     while in_file.read_line(line):
-        if line.starts_with():
-            out_file.write_line()
+        if line.starts_with(line_starts_with):
+            out_file.write_line(replace_with)
         else:
             out_file.write_line(line)
 
     os.remove_file(file_path)
-    os.move_file(tmp_path, nim_path)
+    os.move_file(tmp_path, file_path)
 
-alter_version "src/simpl_parseopt.nim", "const VERSION", "const VERSION = \"" & version & "\""
-alter_version "simpl_parseopt.nimble",  "version ",      "version       = \"" & version & "\""
+alter_version "src/simple_parseopt.nim", "const VERSION", "const VERSION = \"" & version & "\""
+alter_version "simple_parseopt.nimble",  "version ",      "version       = \"" & version & "\""
+
+echo "\nGenerating docs..."
+var error = os.exec_shell_cmd("bin/make -d README.md -version " & version)
+
+if error != 0:
+    quit "\nCould not generate `simple_parseopt.html`: " & error.repr
 
 
 
