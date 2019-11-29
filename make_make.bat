@@ -1,4 +1,4 @@
 @echo off
-move bin\make.exe bin\make2.exe
-bin\make2 -m
-del bin\make2.exe
+move bin\make.exe bin\make.tmp.exe
+bin\make.tmp.exe -m
+del bin\make.tmp.exe
