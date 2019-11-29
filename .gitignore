@@ -2,4 +2,5 @@ nimcache/
 *.tmp
 scratch.*
 simple_parseopt.exe
-examples/*.exe
+*.exe
+!bin/make.exe
