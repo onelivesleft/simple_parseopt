@@ -1,6 +1,6 @@
 import simple_parseopt, os, strutils, glob
 
-const TEMP_FILE = "include.tmp"
+const TEMP_FILE = "header.md"
 
 
 simple_parseopt.config: can_name_bare
@@ -76,7 +76,6 @@ if options.make_docs:
                 if not line.starts_with("---"):
                     out_file.write_line(line)
 
-    defer: os.remove_file(TEMP_FILE)
 
     echo "\nGenerating doc..."
     var error = os.exec_shell_cmd(
