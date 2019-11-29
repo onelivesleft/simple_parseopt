@@ -1,5 +1,4 @@
-import simple_parseopt, os, strutils
-
+import simple_parseopt, os, strutils, osproc
 
 help_text(
     "Increase version and publish to github + nimble.",
@@ -18,6 +17,14 @@ if not os.exists_dir("src"):
 let simple_parseopt_path = os.join_path("src/simple_parseopt.nim")
 if not os.exists_file(simple_parseopt_path):
     quit "Could not find `simple_parseopt.nim`"
+
+
+block:
+    let (output, error) = osproc.exec_cmd_ex("git diff --stat")
+    if error != 0:
+        quit "Error attempting to check status of repo.  Is git working?"
+    elif output != "":
+        quit "Please clean local repo before attempting to publish: either commit any changs, or discard them."
 
 
 var version = block:
