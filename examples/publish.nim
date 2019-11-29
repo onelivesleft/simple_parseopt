@@ -24,7 +24,7 @@ block:
     if error != 0:
         quit "Error attempting to check status of repo.  Is git working?"
     elif output != "":
-        quit "Please clean local repo before attempting to publish: either commit any changs, or discard them."
+        quit "Please clean local repo before attempting to publish: either commit any changes, or discard them."
 
 
 var version = block:
@@ -92,14 +92,28 @@ alter_version "src/simple_parseopt.nim", "const version", "const version = \"" &
 alter_version "simple_parseopt.nimble",  "version ",      "version       = \"" & version & "\""
 
 
-echo "\nGenerating docs..."
-var error = os.exec_shell_cmd(os.join_path("bin", "make") & " -d README.md -version " & version)
-
-if error != 0:
-    quit "\nCould not generate `simple_parseopt.html`: " & error.repr
-
+proc check_exec_cmd(command, message: string) =
+    var error = os.exec_shell_cmd(command)
+    if error != 0:
+        quit "\n" & message & ": " & error.repr
 
 
+block:
+    echo "\nGenerating docs..."
+    check_exec_cmd(
+        os.join_path("bin", "make") & " -d README.md -version " & version,
+        "Could not generate `simple_parseopt.html`")
+
+
+block:
+    echo "\nPublishing to Github..."
+    check_exec_cmd "git add src/simple_parseopt.nim", "Could not add `src/simple_parseopt.nim`"
+    check_exec_cmd "git add simple_parseopt.nimble", "Could not add `simple_parseopt.nimble`"
+    check_exec_cmd "git add simple_parseopt.html", "Could not add `simple_parseopt.html`"
+    check_exec_cmd "git commit -m v" & version, "Could not commit."
+    check_exec_cmd "git push", "Could not push."
+    check_exec_cmd "git tag v" & version & " -m v" & version, "Could not tag."
+    check_exec_cmd "git push origin v" & version, "Could not push tag."
 
 #[
     block: #make temp file
