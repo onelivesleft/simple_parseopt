@@ -125,6 +125,3 @@ block:
     check_exec_cmd "git push", "Could not push."
     check_exec_cmd "git tag v" & version & " -m v" & version, "Could not tag."
     check_exec_cmd "git push origin v" & version, "Could not push tag."
-
-
-publish_to_nimble()
