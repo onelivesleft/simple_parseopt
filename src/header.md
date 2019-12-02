@@ -51,10 +51,11 @@ type Options = object
     active:bool
     letter:char
     age:int
+    hello:string
     big:float64
     small:float
     flat:uint
-    hello:string
+    arguments:seq[string]
 
 options = Options(name: "Default Name", active: false, letter: 'a', age: 1, big: 1.1, small: 2.2, flat: 2)
 
