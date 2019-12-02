@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.0.5"
+version       = "1.0.6"
 author        = "onelivesleft"
 description   = "Nim module which provides clean, zero-effort command line parsing."
 license       = "MIT"
