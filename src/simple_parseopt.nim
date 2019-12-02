@@ -180,37 +180,6 @@ template print(s: string) =
     echo s
 
 
-# Helper for debugging
-
-when is_main_module:
-    var is_main_module_args = ""
-    proc prettify[T](title: string, data: T, new_section = false) =
-        if new_section:
-            print "--------------"
-        print title
-        let s = $data
-        var indenting = false
-        for output in s[1 ..< ^1].strip.replace("[", "").replace("]", "").split(','):
-            var line = output.strip()
-            if line.ends_with("\"") and " = 0" in line:
-                let start = line.find(" = 0")
-                let skip = line.find("\"")
-                line = line[0 ..< start + 3] & line[skip ..< ^0]
-            if line.contains(": @"):
-                let c = line.find("@")
-                print line[0 ..< c]
-                line = line[c + 1 ..< ^0]
-                indenting = true
-            if indenting:
-                if line.contains(":"):
-                    indenting = false
-                else:
-                    line = "  " & line
-            if line != "":
-                print line
-        print ""
-
-
 # Data structures for holding details on each parameter, and procs to manipulate them.
 
 type Param_Kind = enum
@@ -727,9 +696,63 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let bare_fields_node     = new_seq_node(bare_fields_label,     "int")
     let required_fields_node = new_seq_node(required_fields_label, "int")
 
-    var assignments_node = new_nim_node(nnk_block_stmt)
-    assignments_node.add new_empty_node()
-    assignments_node.add new_nim_node(nnk_stmt_list)
+    let options_type_root_node =
+        nnk_type_section.new_tree(
+            nnk_type_def.new_tree(
+                ident(options_type_label),
+                new_empty_node(),
+                nnk_object_ty.new_tree(
+                    new_empty_node(),
+                    new_empty_node(),
+                    new_nim_node(nnk_rec_list))))
+    var options_type_node = options_type_root_node[0][2][2]
+
+    let supplied_type_root_node =
+        nnk_type_section.new_tree(
+            nnk_type_def.new_tree(
+                ident(supplied_type_label),
+                new_empty_node(),
+                nnk_object_ty.new_tree(
+                    new_empty_node(),
+                    new_empty_node(),
+                    new_nim_node(nnk_rec_list))))
+    var supplied_type_node = supplied_type_root_node[0][2][2]
+
+    let options_root_node =
+        nnk_var_section.new_tree(
+            nnk_ident_defs.new_tree(
+                ident(options_instance_label),
+                new_empty_node(),
+                nnk_obj_constr.new_tree(
+                    ident(options_type_label)
+                )))
+    var options_node = options_root_node[0][2]
+
+    let supplied_root_node =
+        nnk_var_section.new_tree(
+            nnk_ident_defs.new_tree(
+                ident(supplied_instance_label),
+                new_empty_node(),
+                nnk_obj_constr.new_tree(
+                    ident(supplied_type_label)
+                )))
+
+    let assignments_root_node =
+        nnk_block_stmt.new_tree(
+            new_empty_node(),
+            new_nim_node(nnk_stmt_list))
+    var assignments_node = assignments_root_node[1]
+
+    let call_node =
+        nnk_call.new_tree(
+            ident(proc_label),
+            ident(options_instance_label),
+            ident(supplied_instance_label))
+
+    let info_node = new_nim_node(nnk_var_section)
+
+
+    # Set up identifiers to access generated variables
 
     let proc_name             = ident(proc_label)
     let type_name             = ident(options_type_label)
@@ -748,359 +771,378 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let exe_name              = ident(executable_label)
 
 
-    # Generate proc which assigns values to fields at runtime (from supplied command line)
+    proc int_from_string[T](s: string): (T, bool) =
+        try:
+            result = (cast[T](parse_biggest_int(s)), true)
+        except:
+            return (cast[T](0), false)
+
+
+    proc uint_from_string[T](s: string): (T, bool) =
+        try:
+            result = (cast[T](parse_biggest_uint(s)), true)
+        except:
+            return (cast[T](0), false)
+
+
+    proc float_from_string[T](s: string): (T, bool) =
+        try:
+            result = (cast[T](parse_float(s)), true)
+        except:
+            return (cast[T](0), false)
+
+
+    proc can_parse_as(value: string, kind: int): bool =
+        case kind
+        of int_param_string:
+            return true
+        of int_param_bool:
+            return false
+        of int_param_int:
+            return int_from_string[int](value)[1]
+        of int_param_i8:
+            return int_from_string[int](value)[1]
+        of int_param_i16:
+            return int_from_string[int](value)[1]
+        of int_param_i32:
+            return int_from_string[int](value)[1]
+        of int_param_i64:
+            return int_from_string[int](value)[1]
+        of int_param_uint:
+            return uint_from_string[int](value)[1]
+        of int_param_u8:
+            return uint_from_string[int](value)[1]
+        of int_param_u16:
+            return uint_from_string[int](value)[1]
+        of int_param_u32:
+            return uint_from_string[int](value)[1]
+        of int_param_u64:
+            return uint_from_string[int](value)[1]
+        of int_param_float:
+            return float_from_string[int](value)[1]
+        of int_param_f32:
+            return float_from_string[int](value)[1]
+        of int_param_f64:
+            return float_from_string[int](value)[1]
+        of int_param_char:
+            return value.len == 1
+        of int_param_undefined:
+            return false
+        of int_param_seq_string:
+            return true
+        of int_param_seq_float:
+            return float_from_string[int](value)[1]
+        of int_param_seq_int:
+            return int_from_string[int](value)[1]
+        else:
+            return false
+
+
+    # Generate code which assigns values to fields at runtime (from supplied command line)
 
     var proc_node = quote do:
+
+        template parse_error(err: string) =
+            print err
+            if quit_on_error:
+                quit(1)
+
+
+        # Helper functions to get and set fields inside generated object.
+        # A lot of this would be cleaner using tables, but as this proc is
+        # called by the enclosing scope, that would require exporting
+        # table, or having the user import it.  We want to be clean,
+        # so we will stick to just using Seq's
+
+        proc index_from_name(name: string): int =
+            for (i, n) in `field_names`.pairs:
+                if n == name:
+                    return i
+            for (i, n) in `alias_names`.pairs:
+                if n == name:
+                    return `alias_index`[i]
+            parse_error("Cannot find option: " & name)
+
+
+        proc get_param_offset(name: string): uint =
+            return `field_offset`[index_from_name(name)]
+
+
+        proc get_param_supplied_offset(name: string): uint =
+            return `field_supplied_offset`[index_from_name(name)]
+
+
+        proc get_param_type(name: string): int =
+            return `field_type`[index_from_name(name)]
+
+
+        proc get_desired_seq_len(name: string): int =
+            return `field_length`[index_from_name(name)]
+
+
+        proc is_bare(index: int): bool =
+            `bare_indexes`.contains(index)
+
+
+        proc is_bare(name: string): bool =
+            is_bare(index_from_name(name))
+
+
+        proc is_seq(name: string): bool =
+            let kind = get_param_type(name)
+            return kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float
+
+
+        template get_prefix(name: string, index = -1): string =
+            if not bare_can_still_be_named and index >= 0 and is_bare(index):
+                ""
+            elif not bare_can_still_be_named and index >= 0  and is_bare(name):
+                ""
+            elif dash_denotes_param:
+                if use_double_dash and name.len > 1:
+                    "--"
+                else:
+                    "-"
+            elif slash_denotes_param:
+                "/"
+            else:
+                ""
+
+
+        proc is_supplied(address: ptr `supplied_type_name`, name: string): bool =
+            let field = cast[ptr bool](cast[uint](address) + get_param_supplied_offset(name))
+            return field[]
+
+
+        proc set_supplied(address: ptr `supplied_type_name`, name: string) =
+            let field = cast[ptr bool](cast[uint](address) + get_param_supplied_offset(name))
+            field[] = true
+
+
+        proc get_seq_len(address: ptr `type_name`, name: string, kind: int): int =
+            case kind
+            of `int_param_seq_string`:
+                let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
+                return field[].len
+            of `int_param_seq_int`:
+                let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
+                return field[].len
+            of `int_param_seq_float`:
+                let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
+                return field[].len
+            else:
+                return 0
+
+
+        proc set_value(address: ptr `type_name`, name: string, value: string = ""): bool =
+            let kind = get_param_type(name)
+            case kind
+            of `int_param_string`:
+                let field = cast[ptr string](cast[uint](address) + get_param_offset(name))
+                field[] = value
+                return true
+            of `int_param_bool`:
+                let field = cast[ptr bool](cast[uint](address) + get_param_offset(name))
+                field[] = not field[]
+                return true
+            of `int_param_int`:
+                let (parsed_value, success) = int_from_string[int](value)
+                if success:
+                    let field = cast[ptr int](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_i8`:
+                let (parsed_value, success) = int_from_string[int8](value)
+                if success:
+                    let field = cast[ptr int8](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_i16`:
+                let (parsed_value, success) = int_from_string[int16](value)
+                if success:
+                    let field = cast[ptr int16](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_i32`:
+                let (parsed_value, success) = int_from_string[int32](value)
+                if success:
+                    let field = cast[ptr int32](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_i64`:
+                let (parsed_value, success) = int_from_string[int64](value)
+                if success:
+                    let field = cast[ptr int64](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_uint`:
+                let (parsed_value, success) = uint_from_string[uint](value)
+                if success:
+                    let field = cast[ptr uint](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_u8`:
+                let (parsed_value, success) = uint_from_string[uint8](value)
+                if success:
+                    let field = cast[ptr uint8](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_u16`:
+                let (parsed_value, success) = uint_from_string[uint16](value)
+                if success:
+                    let field = cast[ptr uint16](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_u32`:
+                let (parsed_value, success) = uint_from_string[uint32](value)
+                if success:
+                    let field = cast[ptr uint32](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_u64`:
+                let (parsed_value, success) = uint_from_string[uint64](value)
+                if success:
+                    let field = cast[ptr uint64](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_float`:
+                let (parsed_value, success) = float_from_string[float](value)
+                if success:
+                    let field = cast[ptr float](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_f32`:
+                let (parsed_value, success) = float_from_string[float32](value)
+                if success:
+                    let field = cast[ptr float32](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_f64`:
+                let (parsed_value, success) = float_from_string[float64](value)
+                if success:
+                    let field = cast[ptr float64](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+            of `int_param_char`:
+                if value.len != 1: return false
+                let field = cast[ptr char](cast[uint](address) + get_param_offset(name))
+                field[] = value[0]
+                return true
+            of `int_param_undefined`:
+                return false
+            of `int_param_seq_string`:
+                let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
+                field[].add value
+                return true
+            of `int_param_seq_int`:
+                let (parsed_value, success) = int_from_string[int](value)
+                if success:
+                    let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
+                    field[].add parsed_value
+                return success
+            of `int_param_seq_float`:
+                let (parsed_value, success) = float_from_string[float](value)
+                if success:
+                    let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
+                    field[].add parsed_value
+                return success
+            else:
+                return false
+
+
+        # Automated help message for `-?`, `-h`, `--help`
+
+        proc do_help() =
+            if help_text_pre != "":
+                print help_text_pre
+
+            print ""
+
+            proc full_name(index: int): string =
+                var name = `field_names`[index]
+                if `alias_index`.contains(index):
+                    for i, alias_index in `alias_index`.pairs:
+                        if alias_index == index:
+                            let alias = `alias_names`[i]
+                            name = name & ", " & get_prefix(alias, index) & alias
+                return name
+
+            var added_options = false
+            var usage:string
+            if program_name != "":
+                usage = program_name
+            else:
+                usage = `exe_name`
+            for i, name in `field_names`:
+                if is_bare(i):
+                    if `required_indexes`.contains(i):
+                        usage &= " " & name
+                    else:
+                        usage &= " [" & name & "]"
+                else:
+                    if `required_indexes`.contains(i):
+                        usage &= " " & get_prefix(name) & name
+                        if `field_type`[i] != `int_param_bool`:
+                            usage &= " " & "<value>"
+                    elif not added_options:
+                        usage &= " " & "[options]"
+                        added_options = true
+
+            print " " & usage
+            print ""
+
+            var letters = 0
+            for i, _ in `field_names`:
+                let name = full_name(i)
+                if name.len > letters: letters = name.len
+
+            var printed_header = false
+
+            for i, name in `field_names`:
+                if not is_bare(i): continue
+                if not printed_header:
+                    print "Arguments:"
+                    print ""
+                    printed_header = true
+                let postfix = `field_descriptions`[i]
+                if postfix == "":
+                    print " " & name
+                else:
+                    var spacer = ""
+                    while name.len + spacer.len < letters:
+                        spacer = spacer & " "
+                    print " " & name & spacer & "    " & postfix
+            if printed_header: print ""
+
+            printed_header = false
+
+            for i, name in `field_names`:
+                if is_bare(i): continue
+                if not printed_header:
+                    print "Options:"
+                    print ""
+                    printed_header = true
+                let display_name = full_name(i)
+                let postfix = `field_descriptions`[i]
+                if postfix == "":
+                    print " " & get_prefix(name) & display_name
+                else:
+                    var spacer = ""
+                    while display_name.len + spacer.len < letters:
+                        spacer = spacer & " "
+                    print " " & get_prefix(name) & display_name & spacer & "    " & postfix
+            if printed_header: print ""
+
+            if help_text_post != "":
+                print help_text_post
+                print ""
+
+
+        # Actual proc called on generated objects to assign user values to them
+
         proc `proc_name`(options: var `type_name`,
                          supplied: var `supplied_type_name`):
                 (`type_name`, `supplied_type_name`) =
-
-            when is_main_module:
-                prettify("Options", options.repr, true)
-                prettify("Supplied", supplied.repr)
-
-            template parse_error(err: string) =
-                print err
-                if quit_on_error:
-                    quit(1)
-
-            # A lot of this would be cleaner using tables, but as this proc is
-            # called by the enclosing scope, that would require exporting
-            # table, or having the user import it.  We want to be clean,
-            # so we will stick to just using Seq's
-
-            proc index_from_name(name: string): int =
-                for (i, n) in `field_names`.pairs:
-                    if n == name:
-                        return i
-                for (i, n) in `alias_names`.pairs:
-                    if n == name:
-                        return `alias_index`[i]
-                parse_error("Cannot find option: " & name)
-
-            proc get_param_offset(name: string): uint =
-                return `field_offset`[index_from_name(name)]
-
-            proc get_param_supplied_offset(name: string): uint =
-                return `field_supplied_offset`[index_from_name(name)]
-
-            proc get_param_type(name: string): int =
-                return `field_type`[index_from_name(name)]
-
-            proc get_desired_seq_len(name: string): int =
-                return `field_length`[index_from_name(name)]
-
-            proc is_bare(index: int): bool =
-                `bare_indexes`.contains(index)
-
-            proc is_bare(name: string): bool =
-                is_bare(index_from_name(name))
-
-            proc is_seq(name: string): bool =
-                let kind = get_param_type(name)
-                return kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float
-
-            template get_prefix(name: string, index = -1): string =
-                if not bare_can_still_be_named and index >= 0 and is_bare(index):
-                    ""
-                elif not bare_can_still_be_named and index >= 0  and is_bare(name):
-                    ""
-                elif dash_denotes_param:
-                    if use_double_dash and name.len > 1:
-                        "--"
-                    else:
-                        "-"
-                elif slash_denotes_param:
-                    "/"
-                else:
-                    ""
-
-            proc do_help() =
-                if help_text_pre != "":
-                    print help_text_pre
-
-                print ""
-
-                proc full_name(index: int): string =
-                    var name = `field_names`[index]
-                    if `alias_index`.contains(index):
-                        for i, alias_index in `alias_index`.pairs:
-                            if alias_index == index:
-                                let alias = `alias_names`[i]
-                                name = name & ", " & get_prefix(alias, index) & alias
-                    return name
-
-                var added_options = false
-                var usage:string
-                if program_name != "":
-                    usage = program_name
-                else:
-                    usage = `exe_name`
-                for i, name in `field_names`:
-                    if is_bare(i):
-                        if `required_indexes`.contains(i):
-                            usage &= " " & name
-                        else:
-                            usage &= " [" & name & "]"
-                    else:
-                        if `required_indexes`.contains(i):
-                            usage &= " " & get_prefix(name) & name
-                            if `field_type`[i] != `int_param_bool`:
-                                usage &= " " & "<value>"
-                        elif not added_options:
-                            usage &= " " & "[options]"
-                            added_options = true
-
-                print " " & usage
-                print ""
-
-                var letters = 0
-                for i, _ in `field_names`:
-                    let name = full_name(i)
-                    if name.len > letters: letters = name.len
-
-                var printed_header = false
-
-                for i, name in `field_names`:
-                    if not is_bare(i): continue
-                    if not printed_header:
-                        print "Arguments:"
-                        print ""
-                        printed_header = true
-                    let postfix = `field_descriptions`[i]
-                    if postfix == "":
-                        print " " & name
-                    else:
-                        var spacer = ""
-                        while name.len + spacer.len < letters:
-                            spacer = spacer & " "
-                        print " " & name & spacer & "    " & postfix
-                if printed_header: print ""
-
-                printed_header = false
-
-                for i, name in `field_names`:
-                    if is_bare(i): continue
-                    if not printed_header:
-                        print "Options:"
-                        print ""
-                        printed_header = true
-                    let display_name = full_name(i)
-                    let postfix = `field_descriptions`[i]
-                    if postfix == "":
-                        print " " & get_prefix(name) & display_name
-                    else:
-                        var spacer = ""
-                        while display_name.len + spacer.len < letters:
-                            spacer = spacer & " "
-                        print " " & get_prefix(name) & display_name & spacer & "    " & postfix
-                if printed_header: print ""
-
-                if help_text_post != "":
-                    print help_text_post
-                    print ""
-
-
-            proc is_supplied(address: ptr `supplied_type_name`, name: string): bool =
-                let field = cast[ptr bool](cast[uint](address) + get_param_supplied_offset(name))
-                return field[]
-
-            proc set_supplied(address: ptr `supplied_type_name`, name: string) =
-                let field = cast[ptr bool](cast[uint](address) + get_param_supplied_offset(name))
-                field[] = true
-
-            proc int_from_string[T](s: string): (T, bool) =
-                try:
-                    result = (cast[T](parse_biggest_int(s)), true)
-                except:
-                    return (cast[T](0), false)
-
-            proc uint_from_string[T](s: string): (T, bool) =
-                try:
-                    result = (cast[T](parse_biggest_uint(s)), true)
-                except:
-                    return (cast[T](0), false)
-
-            proc float_from_string[T](s: string): (T, bool) =
-                try:
-                    result = (cast[T](parse_float(s)), true)
-                except:
-                    return (cast[T](0), false)
-
-            proc get_seq_len(address: ptr `type_name`, name: string, kind: int): int =
-                case kind
-                of `int_param_seq_string`:
-                    let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
-                    return field[].len
-                of `int_param_seq_int`:
-                    let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
-                    return field[].len
-                of `int_param_seq_float`:
-                    let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
-                    return field[].len
-                else:
-                    return 0
-
-            proc can_parse_as(value: string, kind: int): bool =
-                case kind
-                of `int_param_string`:
-                    return true
-                of `int_param_bool`:
-                    return false
-                of `int_param_int`:
-                    return int_from_string[int](value)[1]
-                of `int_param_i8`:
-                    return int_from_string[int](value)[1]
-                of `int_param_i16`:
-                    return int_from_string[int](value)[1]
-                of `int_param_i32`:
-                    return int_from_string[int](value)[1]
-                of `int_param_i64`:
-                    return int_from_string[int](value)[1]
-                of `int_param_uint`:
-                    return uint_from_string[int](value)[1]
-                of `int_param_u8`:
-                    return uint_from_string[int](value)[1]
-                of `int_param_u16`:
-                    return uint_from_string[int](value)[1]
-                of `int_param_u32`:
-                    return uint_from_string[int](value)[1]
-                of `int_param_u64`:
-                    return uint_from_string[int](value)[1]
-                of `int_param_float`:
-                    return float_from_string[int](value)[1]
-                of `int_param_f32`:
-                    return float_from_string[int](value)[1]
-                of `int_param_f64`:
-                    return float_from_string[int](value)[1]
-                of `int_param_char`:
-                    return value.len == 1
-                of `int_param_undefined`:
-                    return false
-                of `int_param_seq_string`:
-                    return true
-                of `int_param_seq_float`:
-                    return float_from_string[int](value)[1]
-                of `int_param_seq_int`:
-                    return int_from_string[int](value)[1]
-                else:
-                    return false
-
-
-            proc set_value(address: ptr `type_name`, name: string, value: string = ""): bool =
-                let kind = get_param_type(name)
-                case kind
-                of `int_param_string`:
-                    let field = cast[ptr string](cast[uint](address) + get_param_offset(name))
-                    field[] = value
-                    return true
-                of `int_param_bool`:
-                    let field = cast[ptr bool](cast[uint](address) + get_param_offset(name))
-                    field[] = not field[]
-                    return true
-                of `int_param_int`:
-                    let (parsed_value, success) = int_from_string[int](value)
-                    if success:
-                        let field = cast[ptr int](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_i8`:
-                    let (parsed_value, success) = int_from_string[int8](value)
-                    if success:
-                        let field = cast[ptr int8](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_i16`:
-                    let (parsed_value, success) = int_from_string[int16](value)
-                    if success:
-                        let field = cast[ptr int16](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_i32`:
-                    let (parsed_value, success) = int_from_string[int32](value)
-                    if success:
-                        let field = cast[ptr int32](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_i64`:
-                    let (parsed_value, success) = int_from_string[int64](value)
-                    if success:
-                        let field = cast[ptr int64](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_uint`:
-                    let (parsed_value, success) = uint_from_string[uint](value)
-                    if success:
-                        let field = cast[ptr uint](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_u8`:
-                    let (parsed_value, success) = uint_from_string[uint8](value)
-                    if success:
-                        let field = cast[ptr uint8](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_u16`:
-                    let (parsed_value, success) = uint_from_string[uint16](value)
-                    if success:
-                        let field = cast[ptr uint16](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_u32`:
-                    let (parsed_value, success) = uint_from_string[uint32](value)
-                    if success:
-                        let field = cast[ptr uint32](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_u64`:
-                    let (parsed_value, success) = uint_from_string[uint64](value)
-                    if success:
-                        let field = cast[ptr uint64](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_float`:
-                    let (parsed_value, success) = float_from_string[float](value)
-                    if success:
-                        let field = cast[ptr float](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_f32`:
-                    let (parsed_value, success) = float_from_string[float32](value)
-                    if success:
-                        let field = cast[ptr float32](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_f64`:
-                    let (parsed_value, success) = float_from_string[float64](value)
-                    if success:
-                        let field = cast[ptr float64](cast[uint](address) + get_param_offset(name))
-                        field[] = parsed_value
-                    return success
-                of `int_param_char`:
-                    if value.len != 1: return false
-                    let field = cast[ptr char](cast[uint](address) + get_param_offset(name))
-                    field[] = value[0]
-                    return true
-                of `int_param_undefined`:
-                    return false
-                of `int_param_seq_string`:
-                    let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
-                    field[].add value
-                    return true
-                of `int_param_seq_int`:
-                    let (parsed_value, success) = int_from_string[int](value)
-                    if success:
-                        let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
-                        field[].add parsed_value
-                    return success
-                of `int_param_seq_float`:
-                    let (parsed_value, success) = float_from_string[float](value)
-                    if success:
-                        let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
-                        field[].add parsed_value
-                    return success
-                else:
-                    return false
 
             var
                 awaiting_value = false
@@ -1126,10 +1168,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 if add_implicit_bare and last_seq_string >= 0:
                     `bare_indexes`.add(last_seq_string)
 
-            when is_main_module:
-                var words:seq[string] = parse_cmd_line(is_main_module_args)
-            else:
-                var words:seq[string] = command_line_params()
+            var words:seq[string] = command_line_params()
             var next_word_index = 0
             while next_word_index < words.len:
                 let word = words[next_word_index]
@@ -1262,79 +1301,37 @@ macro get_options_and_supplied*(body: untyped): untyped =
             return (options, supplied)
 
 
-    var type_node = new_nim_node(nnk_type_section)
-    var supplied_type_node = new_nim_node(nnk_type_section)
-    var var_node = new_nim_node(nnk_var_section)
-    var supplied_var_node = new_nim_node(nnk_var_section)
-    var call_node = new_nim_node(nnk_call)
-    var info_node = new_nim_node(nnk_var_section)
+    # Generate AST skeleton
 
-    result = new_nim_node(nnk_block_stmt)
-    result.add new_empty_node()
-    result.add new_nim_node(nnk_stmt_list)
-
-    result[1].add type_node
-    result[1].add supplied_type_node
-    result[1].add var_node
-    result[1].add supplied_var_node
-    result[1].add field_names_node
-    result[1].add field_offsets_node
-    result[1].add field_supplied_node
-    result[1].add field_types_node
-    result[1].add info_node
-    result[1].add field_alias_names_node
-    result[1].add field_alias_indexes_node
-    result[1].add field_default_values_node
-    result[1].add field_lengths_node
-    result[1].add field_descriptions_node
-    result[1].add required_fields_node
-    result[1].add bare_fields_node
-    result[1].add assignments_node
-    result[1].add proc_node
-    result[1].add call_node
-
-    type_node.add new_nim_node(nnk_type_def)
-    type_node[0].add ident(options_type_label)
-    type_node[0].add new_empty_node()
-    type_node[0].add new_nim_node(nnk_object_ty)
-    type_node[0][2].add new_empty_node()
-    type_node[0][2].add new_empty_node()
-    type_node[0][2].add new_nim_node(nnk_rec_list)
-    type_node = type_node[0][2][2]
-
-    supplied_type_node.add new_nim_node(nnk_type_def)
-    supplied_type_node[0].add ident(supplied_type_label)
-    supplied_type_node[0].add new_empty_node()
-    supplied_type_node[0].add new_nim_node(nnk_object_ty)
-    supplied_type_node[0][2].add new_empty_node()
-    supplied_type_node[0][2].add new_empty_node()
-    supplied_type_node[0][2].add new_nim_node(nnk_rec_list)
-    supplied_type_node = supplied_type_node[0][2][2]
-
-    var_node.add new_nim_node(nnk_ident_defs)
-    var_node[0].add ident(options_instance_label)
-    var_node[0].add new_empty_node()
-    var_node[0].add new_nim_node(nnk_obj_constr)
-    var_node = var_node[0][2]
-
-    supplied_var_node.add new_nim_node(nnk_ident_defs)
-    supplied_var_node[0].add ident(supplied_instance_label)
-    supplied_var_node[0].add new_empty_node()
-    supplied_var_node[0].add new_nim_node(nnk_call)
-    supplied_var_node = supplied_var_node[0][2]
-
-    var_node.add ident(options_type_label)
-    supplied_var_node.add ident(supplied_type_label)
-
-    assignments_node = assignments_node[1]
-
-    call_node.add ident(proc_label)
-    call_node.add ident(options_instance_label)
-    call_node.add ident(supplied_instance_label)
+    result =
+        nnk_block_stmt.new_tree(
+            new_empty_node(),
+            nnk_stmt_list.new_tree(
+                options_type_root_node,
+                supplied_type_root_node,
+                options_root_node,
+                supplied_root_node,
+                field_names_node,
+                field_offsets_node,
+                field_supplied_node,
+                field_types_node,
+                info_node,
+                field_alias_names_node,
+                field_alias_indexes_node,
+                field_default_values_node,
+                field_lengths_node,
+                field_descriptions_node,
+                required_fields_node,
+                bare_fields_node,
+                assignments_node,
+                proc_node,
+                call_node))
 
 
-    template add_type(name: string, kind: ParamKind) =
-        type_node.add(
+    # Fill it out
+
+    template add_field_to_type(name: string, kind: ParamKind) =
+        options_type_node.add(
             nnk_ident_defs.new_tree(
                 ident(name),
                 ident_from_kind(kind),
@@ -1345,14 +1342,16 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 ident("bool"),
                 new_empty_node()))
 
-    template add_var(name: string, value_node: Nim_Node) =
+
+    template add_field_value_assignment(name: string, value_node: Nim_Node) =
         if value_node != nil:
-            var_node.add(
+            options_node.add(
                 nnk_expr_colon_expr.new_tree(
                     ident(name),
                     value_node.copy_nim_node))
 
-    template add_offset(name: string) =
+
+    template add_field_value_offset(name: string) =
         assignments_node.add(
             nnk_call.new_tree(
                 nnk_dot_expr.new_tree(
@@ -1373,7 +1372,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             ident("addr"),
                             ident(options_instance_label))))))
 
-    template add_supplied_offset(name: string) =
+
+    template add_field_supplied_offset(name: string) =
         assignments_node.add(
             nnk_call.new_tree(
                 nnk_dot_expr.new_tree(
@@ -1394,104 +1394,54 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             ident("addr"),
                             ident(supplied_instance_label))))))
 
-    template add_name(name: string) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(field_names_label),
-                    ident("add")),
-                new_str_lit_node(name)))
 
-    template add_type_lookup(name: string, kind: Param_Kind) =
+    template add_seq_value(seq_name: string, value: string) =
         assignments_node.add(
             nnk_call.new_tree(
                 nnk_dot_expr.new_tree(
-                    ident(field_types_label),
+                    ident(seq_name),
                     ident("add")),
-                new_int_lit_node(int_param_from_param(kind))))
+                new_str_lit_node(value)))
 
-    template add_default_value(name: string, default: string) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(field_default_values_label),
-                    ident("add")),
-                new_str_lit_node(default)))
 
-    template add_seq_length(name: string, length: int) =
+    template add_seq_value(seq_name: string, value: int) =
         assignments_node.add(
             nnk_call.new_tree(
                 nnk_dot_expr.new_tree(
-                    ident(field_lengths_label),
+                    ident(seq_name),
                     ident("add")),
-                new_int_lit_node(length)))
-
-    template add_alias(name: string, index: int) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(field_alias_names_label),
-                    ident("add")),
-                new_str_lit_node(name)))
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(field_alias_indexes_label),
-                    ident("add")),
-                new_int_lit_node(index)))
-
-    template add_description(name: string, description: string) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(field_descriptions_label),
-                    ident("add")),
-                new_str_lit_node(description)))
-
-    template add_bare_index(index: int) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(bare_fields_label),
-                    ident("add")),
-                new_int_lit_node(index)))
-
-    template add_required(index: int) =
-        assignments_node.add(
-            nnk_call.new_tree(
-                nnk_dot_expr.new_tree(
-                    ident(required_fields_label),
-                    ident("add")),
-                new_int_lit_node(index)))
+                new_int_lit_node(value)))
 
 
     var alias_list:seq[string] = @[]
-    let exe = current_source_path().extract_filename.change_file_ext("")
+    let exe_filename = current_source_path().extract_filename.change_file_ext("")
     info_node.add nnk_ident_defs.new_tree(
         ident(executable_label),
         new_empty_node(),
-        new_str_lit_node(exe)
+        new_str_lit_node(exe_filename)
     )
+
 
     for i, name in params_in_order.pairs:
         let param = params[name]
-        add_type name, param.kind
-        add_var name, value_node_from_param(param)
-        add_offset name
-        add_supplied_offset name
-        add_name name
-        add_type_lookup name, param.kind
-        add_default_value name, string_from_param(param)
-        add_seq_length name, param.seq_len
-        add_description name, param.description
+        add_field_to_type name, param.kind
+        add_field_value_assignment name, value_node_from_param(param)
+        add_field_value_offset name
+        add_field_supplied_offset name
+        add_seq_value field_names_label, name
+        add_seq_value field_types_label, int_param_from_param(param.kind)
+        add_seq_value field_default_values_label, string_from_param(param)
+        add_seq_value field_lengths_label, param.seq_len
+        add_seq_value field_descriptions_label, param.description
         if param.required:
-            add_required(i)
+            add_seq_value required_fields_label, i
         if param.accepts_bare:
-            add_bare_index(i)
+            add_seq_value bare_fields_label, i
         for alias in param.alias:
             if alias in alias_list or alias in params:
                 error("Parameter already exists: " & alias)
-            add_alias alias, i
+            add_seq_value field_alias_names_label, alias
+            add_seq_value field_alias_indexes_label, i
             alias_list.add alias
 
 
@@ -1574,10 +1524,7 @@ macro get_options*(body: untyped): untyped =
 
 
 when is_main_module:
-    is_main_module_args = "--age:2 there --big 10 --namu \"Joe Random\"  -x 1 10 20 30 -h -?"
-
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
-    #command_name "simples"
     help_text "Nim module v" & version
 
     var (options, is_set) = get_options_and_supplied:
@@ -1595,6 +1542,31 @@ when is_main_module:
         position:seq[int] {. len(3), bare .}
         args: seq[string]
 
+    proc prettify[T](title: string, data: T, new_section = false) =
+        if new_section:
+            print "--------------"
+        print title
+        let s = $data
+        var indenting = false
+        for output in s[1 ..< ^1].strip.replace("[", "").replace("]", "").split(','):
+            var line = output.strip()
+            if line.ends_with("\"") and " = 0" in line:
+                let start = line.find(" = 0")
+                let skip = line.find("\"")
+                line = line[0 ..< start + 3] & line[skip ..< ^0]
+            if line.contains(": @"):
+                let c = line.find("@")
+                print line[0 ..< c]
+                line = line[c + 1 ..< ^0]
+                indenting = true
+            if indenting:
+                if line.contains(":"):
+                    indenting = false
+                else:
+                    line = "  " & line
+            if line != "":
+                print line
+        print ""
 
     prettify("Options", options, true)
     prettify("Supplied", is_set)

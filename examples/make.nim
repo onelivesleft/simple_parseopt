@@ -1,6 +1,6 @@
 import simple_parseopt, os, strutils, glob
 
-const TEMP_FILE = "header.md"
+const TEMP_FILE = os.join_path("src", "header.md")
 
 
 simple_parseopt.config: can_name_bare
