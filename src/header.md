@@ -18,10 +18,11 @@ let options = get_options:
     active        = false
     letter        = 'a'
     age           = 1
+    hello:string
     big:float64   = 1.1
     small:float   = 2.2
     flat:uint     = 2
-    hello:string
+    arguments:seq[string]
 
 echo options.name & " is " & options.age.repr & " years old!"
 ```
@@ -35,6 +36,10 @@ foo -name "J. Random" -active -big 1011121.121498
 ```
 
 This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, and set the `big` `float64` to `1011121.121498`
+
+You may use any basic type (`bool`, `string`, `int`, `float`, `uint`, `char`, and the sized variants thereof), as well as `seq[string]`, `seq[int]`, and `seq[float]`.
+The last `seq[string]` will be used to store any arguments set without a parameter name (you can disable this behaviour with `no_implicit_bare()`)
+
 
 *Details*
 
