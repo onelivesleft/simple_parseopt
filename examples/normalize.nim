@@ -31,7 +31,7 @@ var max_y = points[0].y.abs
 var max_z = points[0].z.abs
 
 template update_max(max, value) =
-    if value > max: max = value
+    if value.abs > max: max = value.abs
 
 for point in points:
     update_max max_x, point.x
@@ -49,3 +49,6 @@ for point in points:
     let y = point.y / max_y
     let z = point.z / max_z
     echo x, " ", y, " ", z
+
+
+# example: normalize.exe -p 10 -20 10 -p 30 10 -10 -p 5 7 9

@@ -298,6 +298,17 @@ const
     first_seq_int = 17
 
 
+proc is_numeric(int_param: int): bool =
+    case int_param:
+    of int_param_undefined:  return false
+    of int_param_char:       return false
+    of int_param_string:     return false
+    of int_param_bool:       return false
+    of int_param_seq_char:   return false
+    of int_param_seq_string: return false
+    else:                    return true
+
+
 proc int_param_from_param(kind: Param_Kind): int =
     case kind:
     of param_undefined:  return int_param_undefined
@@ -1222,6 +1233,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
             var
                 awaiting_value = false
                 awaiting_value_for = ""
+                awaiting_value_for_type = 0
                 writing_to_seq = false
                 writing_bare_seq = false
                 current_seq_length = 0
@@ -1248,7 +1260,9 @@ macro get_options_and_supplied*(body: untyped): untyped =
             while next_word_index < words.len:
                 let word = words[next_word_index]
                 next_word_index += 1
-                if ((dash_denotes_param and word.starts_with("-")) or (slash_denotes_param and word.starts_with("/"))) and not force_bare:
+                let word_is_value = force_bare or
+                        (awaiting_value and is_numeric(awaiting_value_for_type) and can_parse_as(word, awaiting_value_for_type))
+                if not word_is_value and ((dash_denotes_param and word.starts_with("-")) or (slash_denotes_param and word.starts_with("/"))):
                     if writing_to_seq:
                         if desired_seq_length != 0 and desired_seq_length != current_seq_length:
                             parse_error("Expected " & desired_seq_length.repr & " values for: " & get_prefix(awaiting_value_for) & awaiting_value_for)
@@ -1306,6 +1320,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                     else:
                         awaiting_value = true
                         awaiting_value_for = name
+                        awaiting_value_for_type = get_param_type(name)
                 else:
                     if awaiting_value:
                         if set_value(addr options, awaiting_value_for, word):
@@ -1605,26 +1620,6 @@ macro get_options*(body: untyped): untyped =
 
 
 when is_main_module:
-    config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
-    help_text "Nim module v" & version
-
-    # vscode-nim arguments: --namu Bob B 10 20 30 --letters a b c d
-
-    let (options, is_set) = get_options_and_supplied:
-        name = "Default Name" {. alias("n", "namu") .}
-        toggle = false {. info("Flip me") .}
-        letter = 'a' {. bare, info("Initial") .}
-        age = 1 {. info("How old they are") .}
-        here = true {. alias("h"), info("And now!") .}
-        there = false  {. info("And back!") .}
-        big:float64 = 1.1
-        small:float = 2.2
-        active:bool
-        flat:uint = 2
-        letters: seq[char]
-        position:seq[int8] {. len(3), bare .}
-        args: seq[string]
-
     proc prettify[T](title: string, data: T, new_section = false) =
         if new_section:
             print "--------------"
@@ -1650,6 +1645,26 @@ when is_main_module:
             if line != "":
                 print line
         print ""
+
+    config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
+    help_text "Nim module v" & version
+
+    # vscode-nim arguments: --namu Bob B --position 10 20 10 -30 --letters a b c d
+
+    let (options, is_set) = get_options_and_supplied:
+        name = "Default Name" {. alias("n", "namu") .}
+        toggle = false {. info("Flip me") .}
+        letter = 'a' {. bare, info("Initial") .}
+        age = 1 {. info("How old they are") .}
+        here = true {. alias("h"), info("And now!") .}
+        there = false  {. info("And back!") .}
+        big:float64 = 1.1
+        small:float = 2.2
+        active:bool
+        flat:uint = 2
+        letters: seq[char]
+        position:seq[int8] {. len(3) .}
+        args: seq[string]
 
     prettify("Options", options, true)
     prettify("Supplied", is_set)
