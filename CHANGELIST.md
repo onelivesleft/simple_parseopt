@@ -1,3 +1,8 @@
+# v1.0.8
+
+* Fixed numeric parameters being confused for parameter names
+
+
 # v1.0.7
 
 * Fixed var:bool field declarations
