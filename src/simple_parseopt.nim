@@ -447,6 +447,7 @@ proc kind_from_ident(ident: Nim_node): Param_Kind =
         of "string":    return param_string
         of "true":      return param_bool
         of "false":     return param_bool
+        of "bool":      return param_bool
         else:           return param_undefined
 
 
@@ -614,7 +615,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ## `{. bare .}` or `{. positional .}`
     ##  Accepts a bare, positional argument (an argument which has not
     ##  been prefixed with a parameter name).  User will not be able to
-    ##  refer to the argmuent with its parameter name.
+    ##  refer to the argument with its parameter name.
     ##
     ##
     ## `{. need .}` or `.{ required .}`
@@ -655,9 +656,9 @@ macro get_options_and_supplied*(body: untyped): untyped =
     var aliases:seq[string] = @[]
 
     for node in body.children:
-        let (kind, name_node, value_node, pragma_node, error) = declaration_from_node(node)
+        let (kind, name_node, value_node, pragma_node, err) = declaration_from_node(node)
         if  kind == param_undefined:
-            error("Expected declaration, e.g. x = 1 or x:int = 1 or x:int [ERR:" & error.repr & "]", node)
+            error("Expected declaration, e.g. x = 1 or x:int = 1 or x:int [ERR:" & err.repr & "]", node)
         let (param, name) = param_from_nodes(name_node, kind, value_node, pragma_node)
         for alias in param.alias:
             if alias in params or alias in aliases:
@@ -1490,7 +1491,7 @@ macro get_options*(body: untyped): untyped =
     ## `{. bare .}` or `{. positional .}`
     ##  Accepts a bare, positional argument (an argument which has not
     ##  been prefixed with a parameter name).  User will not be able to
-    ##  refer to the argmuent with its parameter name.
+    ##  refer to the argument with its parameter name.
     ##
     ##
     ## `{. need .}` or `.{ required .}`
@@ -1527,7 +1528,9 @@ when is_main_module:
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
     help_text "Nim module v" & version
 
-    var (options, is_set) = get_options_and_supplied:
+    # vscode-nim arguments: --namu Bob B 10 20 30
+
+    let (options, is_set) = get_options_and_supplied:
         name = "Default Name" {. alias("n", "namu") .}
         toggle = false {. info("Flip me") .}
         letter = 'a' {. bare, info("Initial") .}
@@ -1536,9 +1539,8 @@ when is_main_module:
         there = false  {. info("And back!") .}
         big:float64 = 1.1
         small:float = 2.2
+        active:bool
         flat:uint = 2
-        hello:string  {. need, bare .}
-        x:int {. required .}
         position:seq[int] {. len(3), bare .}
         args: seq[string]
 
