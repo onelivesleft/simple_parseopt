@@ -2,6 +2,7 @@
 
 * Fixed var:bool field declarations
 * Added `normalize` example
+* Can now use any kind of `seq` (except `bool`)
 
 
 # v1.0.6
