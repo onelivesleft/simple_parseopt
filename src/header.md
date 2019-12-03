@@ -37,8 +37,9 @@ foo -name "J. Random" -active -big 1011121.121498
 
 This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, and set the `big` `float64` to `1011121.121498`
 
-You may use any basic type (`bool`, `string`, `int`, `float`, `uint`, `char`, and the sized variants thereof), as well as `seq[string]`, `seq[int]`, and `seq[float]`.
-The last `seq[string]` will be used to store any arguments set without a parameter name (you can disable this behaviour with `no_implicit_bare()`)
+You may use any basic type: `bool`, `string`, `int`, `float`, `uint`, `char`, and the sized variants thereof, as well as `seq`s of those types: `seq[string]`, `seq[int]`, `seq[float]`, etc. (You may not use `seq[bool]`)
+
+The last `seq[string]` will automatically be used to store any arguments set without a parameter name (you can disable this behaviour with `no_implicit_bare()`)
 
 
 *Details*
@@ -100,6 +101,39 @@ foo -name "Joe Random" -active
 foo /active /letter Z /flat 100
 foo /hello Greetings! -big 100 /small 20
 ```
+
+
+## Extra Parameter Info: Pragmas
+
+You may also add pragmas to the end of any line to modify parameter behaviour.  Each pragma has a more verbose alias, if you prefer that style of code.
+
+* `{. info("text") .}` *or* `{. description("text") .}`
+
+    Description of the parameter which will be shown in help text.
+
+
+* `{. aka("a", "b", ...) .}` *or* `{. alias("a", "b", ...) .}`
+
+    Aliases for the parameter - user may use these as parameters; they will write to the field.
+
+
+* `{. bare .}` *or* `{. positional .}`
+
+    Accepts a bare, positional argument (an argument which has not been prefixed with a parameter name).  User will not be able to refer to the argument with its parameter name.
+
+
+* `{. need .}` *or* `.{ required .}`
+
+    Parameter must be supplied by user or an error is shown.
+
+
+* `{. len(i) .}` *or* `.{ count(i) .}`
+
+    Place on a `seq` field to require that many values be supplied to it. For example:
+
+    `position:seq[float] {. len(3) .} # x y z`
+
+    Note that this does not set a limit on the total length of the `seq`, only on how many values the user must specify.  Using `len` in conjunction with the `allow_repetition` setting, you can accept multiple batches of values (see `normalize.nim` example)
 
 
 ## Settings

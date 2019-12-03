@@ -200,9 +200,21 @@ type Param_Kind = enum
     param_char,
     param_string,
     param_bool,
-    param_seq_string,
     param_seq_int,
+    param_seq_i8,
+    param_seq_i16,
+    param_seq_i32,
+    param_seq_i64,
+    param_seq_uint,
+    param_seq_u8,
+    param_seq_u16,
+    param_seq_u32,
+    param_seq_u64,
     param_seq_float,
+    param_seq_f32,
+    param_seq_f64,
+    param_seq_char,
+    param_seq_string
 
 type Param = object
     name: string
@@ -230,9 +242,21 @@ type Param = object
     of param_char:         char_value: char
     of param_string:       string_value: string
     of param_bool:         bool_value: bool
-    of param_seq_string:   seq_string_value: seq[string]
     of param_seq_int:      seq_int_value: seq[int]
+    of param_seq_i8:       seq_i8_value: seq[int8]
+    of param_seq_i16:      seq_i16_value: seq[int16]
+    of param_seq_i32:      seq_i32_value: seq[int32]
+    of param_seq_i64:      seq_i64_value: seq[int64]
+    of param_seq_uint:     seq_uint_value: seq[uint]
+    of param_seq_u8:       seq_u8_value: seq[uint8]
+    of param_seq_u16:      seq_u16_value: seq[uint16]
+    of param_seq_u32:      seq_u32_value: seq[uint32]
+    of param_seq_u64:      seq_u64_value: seq[uint64]
     of param_seq_float:    seq_float_value: seq[float]
+    of param_seq_f32:      seq_f32_value: seq[float32]
+    of param_seq_f64:      seq_f64_value: seq[float64]
+    of param_seq_char:     seq_char_value: seq[char]
+    of param_seq_string:   seq_string_value: seq[string]
 
 
 # int versions of Param_Kind, so that we don't need to export it  to enclosing scope.
@@ -255,9 +279,24 @@ const
     int_param_char       = 14
     int_param_string     = 15
     int_param_bool       = 16
-    int_param_seq_string = 17
-    int_param_seq_int    = 18
-    int_param_seq_float  = 19
+    int_param_seq_int    = 17
+    int_param_seq_i8     = 18
+    int_param_seq_i16    = 19
+    int_param_seq_i32    = 20
+    int_param_seq_i64    = 21
+    int_param_seq_uint   = 22
+    int_param_seq_u8     = 23
+    int_param_seq_u16    = 24
+    int_param_seq_u32    = 25
+    int_param_seq_u64    = 26
+    int_param_seq_float  = 27
+    int_param_seq_f32    = 28
+    int_param_seq_f64    = 29
+    int_param_seq_char   = 30
+    int_param_seq_string = 31
+
+    first_seq_int = 17
+
 
 proc int_param_from_param(kind: Param_Kind): int =
     case kind:
@@ -278,9 +317,21 @@ proc int_param_from_param(kind: Param_Kind): int =
     of param_char:       return int_param_char
     of param_string:     return int_param_string
     of param_bool:       return int_param_bool
-    of param_seq_string: return int_param_seq_string
-    of param_seq_int:    return int_param_seq_int
-    of param_seq_float:  return int_param_seq_float
+    of param_seq_int:        return int_param_seq_int
+    of param_seq_i8:         return int_param_seq_i8
+    of param_seq_i16:        return int_param_seq_i16
+    of param_seq_i32:        return int_param_seq_i32
+    of param_seq_i64:        return int_param_seq_i64
+    of param_seq_uint:       return int_param_seq_uint
+    of param_seq_u8:         return int_param_seq_u8
+    of param_seq_u16:        return int_param_seq_u16
+    of param_seq_u32:        return int_param_seq_u32
+    of param_seq_u64:        return int_param_seq_u64
+    of param_seq_float:      return int_param_seq_float
+    of param_seq_f32:        return int_param_seq_f32
+    of param_seq_f64:        return int_param_seq_f64
+    of param_seq_char:       return int_param_seq_char
+    of param_seq_string:     return int_param_seq_string
 
 
 proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node, pragma_node: Nim_Node): (Param, string) =
@@ -305,9 +356,21 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
         of param_char:       param = Param(name: name, kind: param_char)
         of param_string:     param = Param(name: name, kind: param_string)
         of param_bool:       param = Param(name: name, kind: param_bool)
-        of param_seq_string: param = Param(name: name, kind: param_seq_string)
         of param_seq_int:    param = Param(name: name, kind: param_seq_int)
-        of param_seqfloat:   param = Param(name: name, kind: param_seq_float)
+        of param_seq_i8:     param = Param(name: name, kind: param_seq_i8)
+        of param_seq_i16:    param = Param(name: name, kind: param_seq_i16)
+        of param_seq_i32:    param = Param(name: name, kind: param_seq_i32)
+        of param_seq_i64:    param = Param(name: name, kind: param_seq_i64)
+        of param_seq_uint:   param = Param(name: name, kind: param_seq_uint)
+        of param_seq_u8:     param = Param(name: name, kind: param_seq_u8)
+        of param_seq_u16:    param = Param(name: name, kind: param_seq_u16)
+        of param_seq_u32:    param = Param(name: name, kind: param_seq_u32)
+        of param_seq_u64:    param = Param(name: name, kind: param_seq_u64)
+        of param_seq_float:  param = Param(name: name, kind: param_seq_float)
+        of param_seq_f32:    param = Param(name: name, kind: param_seq_f32)
+        of param_seq_f64:    param = Param(name: name, kind: param_seq_f64)
+        of param_seq_char:   param = Param(name: name, kind: param_seq_char)
+        of param_seq_string: param = Param(name: name, kind: param_seq_string)
     else:
         case kind:
         of param_undefined:  param = Param(name: name, kind: param_undefined)
@@ -327,9 +390,21 @@ proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Nod
         of param_char:       param = Param(name: name, kind: param_char,       char_value:       cast[char](value_node.int_val))
         of param_string:     param = Param(name: name, kind: param_string,     string_value:     value_node.str_val)
         of param_bool:       param = Param(name: name, kind: param_bool,       bool_value:       value_node.str_val == "true")
-        of param_seq_string: param = Param(name: name, kind: param_seq_string, seq_string_value: @[])
         of param_seq_int:    param = Param(name: name, kind: param_seq_int,    seq_int_value:    @[])
+        of param_seq_i8:     param = Param(name: name, kind: param_seq_i8,     seq_i8_value:     @[])
+        of param_seq_i16:    param = Param(name: name, kind: param_seq_i16,    seq_i16_value:    @[])
+        of param_seq_i32:    param = Param(name: name, kind: param_seq_i32,    seq_i32_value:    @[])
+        of param_seq_i64:    param = Param(name: name, kind: param_seq_i64,    seq_i64_value:    @[])
+        of param_seq_uint:   param = Param(name: name, kind: param_seq_uint,   seq_uint_value:   @[])
+        of param_seq_u8:     param = Param(name: name, kind: param_seq_u8,     seq_u8_value:     @[])
+        of param_seq_u16:    param = Param(name: name, kind: param_seq_u16,    seq_u16_value:    @[])
+        of param_seq_u32:    param = Param(name: name, kind: param_seq_u32,    seq_u32_value:    @[])
+        of param_seq_u64:    param = Param(name: name, kind: param_seq_u64,    seq_u64_value:    @[])
         of param_seq_float:  param = Param(name: name, kind: param_seq_float,  seq_float_value:  @[])
+        of param_seq_f32:    param = Param(name: name, kind: param_seq_f32,    seq_f32_value:    @[])
+        of param_seq_f64:    param = Param(name: name, kind: param_seq_f64,    seq_f64_value:    @[])
+        of param_seq_char:   param = Param(name: name, kind: param_seq_char,   seq_char_value:   @[])
+        of param_seq_string: param = Param(name: name, kind: param_seq_string, seq_string_value: @[])
 
     if pragma_node != nil:
         if pragma_node.kind == nnk_ident:
@@ -398,9 +473,6 @@ proc kind_from_lit(lit: Nim_Node): Param_Kind =
 proc ident_from_kind(kind: Param_Kind): Nim_Node =
     case kind
     of param_undefined:    return nil
-    of param_seq_string:   return nnk_bracket_expr.new_tree(ident("seq"), ident("string"))
-    of param_seq_int:      return nnk_bracket_expr.new_tree(ident("seq"), ident("int"))
-    of param_seq_float:    return nnk_bracket_expr.new_tree(ident("seq"), ident("float"))
     of param_int:          return ident("int")
     of param_i8:           return ident("int8")
     of param_i16:          return ident("int16")
@@ -417,6 +489,21 @@ proc ident_from_kind(kind: Param_Kind): Nim_Node =
     of param_char:         return ident("char")
     of param_string:       return ident("string")
     of param_bool:         return ident("bool")
+    of param_seq_int:      return nnk_bracket_expr.new_tree(ident("seq"), ident("int"))
+    of param_seq_i8:       return nnk_bracket_expr.new_tree(ident("seq"), ident("int8"))
+    of param_seq_i16:      return nnk_bracket_expr.new_tree(ident("seq"), ident("int16"))
+    of param_seq_i32:      return nnk_bracket_expr.new_tree(ident("seq"), ident("int32"))
+    of param_seq_i64:      return nnk_bracket_expr.new_tree(ident("seq"), ident("int64"))
+    of param_seq_uint:     return nnk_bracket_expr.new_tree(ident("seq"), ident("uint"))
+    of param_seq_u8:       return nnk_bracket_expr.new_tree(ident("seq"), ident("uint8"))
+    of param_seq_u16:      return nnk_bracket_expr.new_tree(ident("seq"), ident("uint16"))
+    of param_seq_u32:      return nnk_bracket_expr.new_tree(ident("seq"), ident("uint32"))
+    of param_seq_u64:      return nnk_bracket_expr.new_tree(ident("seq"), ident("uint64"))
+    of param_seq_float:    return nnk_bracket_expr.new_tree(ident("seq"), ident("float"))
+    of param_seq_f32:      return nnk_bracket_expr.new_tree(ident("seq"), ident("float32"))
+    of param_seq_f64:      return nnk_bracket_expr.new_tree(ident("seq"), ident("float64"))
+    of param_seq_char:     return nnk_bracket_expr.new_tree(ident("seq"), ident("char"))
+    of param_seq_string:   return nnk_bracket_expr.new_tree(ident("seq"), ident("string"))
 
 
 proc kind_from_ident(ident: Nim_node): Param_Kind =
@@ -424,9 +511,22 @@ proc kind_from_ident(ident: Nim_node): Param_Kind =
             ident[0].kind == nnk_ident and ident[0].str_val == "seq" and
             ident[1].kind == nnk_ident:
         case ident[1].str_val:
-        of "string":    return param_seq_string
         of "int":       return param_seq_int
+        of "int8":      return param_seq_i8
+        of "int16":     return param_seq_i16
+        of "int32":     return param_seq_i32
+        of "int64":     return param_seq_i64
+        of "uint":      return param_seq_uint
+        of "uint8":     return param_seq_u8
+        of "uint16":    return param_seq_u16
+        of "uint32":    return param_seq_u32
+        of "uint64":    return param_seq_u64
         of "float":     return param_seq_float
+        of "float32":   return param_seq_f32
+        of "float64":   return param_seq_f64
+        of "char":      return param_seq_char
+        of "string":    return param_seq_string
+        of "bool":      error("Cannot use seq[bool]")
         else:           return param_undefined
     else:
         case ident.str_val
@@ -453,18 +553,28 @@ proc kind_from_ident(ident: Nim_node): Param_Kind =
 
 proc seq_kind_from_ident(ident: Nim_node): Param_Kind =
     case ident.str_val
-    of "string":    return param_seq_string
     of "int":       return param_seq_int
+    of "int8":      return param_seq_i8
+    of "int16":     return param_seq_i16
+    of "int32":     return param_seq_i32
+    of "int64":     return param_seq_i64
+    of "uint":      return param_seq_uint
+    of "uint8":     return param_seq_u8
+    of "uint16":    return param_seq_u16
+    of "uint32":    return param_seq_u32
+    of "uint64":    return param_seq_u64
     of "float":     return param_seq_float
+    of "float32":   return param_seq_f32
+    of "float64":   return param_seq_f64
+    of "char":      return param_seq_char
+    of "string":    return param_seq_string
+    of "bool":      error("Cannot use seq[bool]")
     else:           return param_undefined
 
 
 proc value_node_from_param(param: Param): Nim_Node =
     case param.kind:
     of param_undefined:  return nil
-    of param_seq_string: return nil
-    of param_seq_int:    return nil
-    of param_seq_float:  return nil
     of param_int:        return new_int_lit_node(param.int_value)
     of param_i8:         return new_int_lit_node(param.i8_value)
     of param_i16:        return new_int_lit_node(param.i16_value)
@@ -485,14 +595,13 @@ proc value_node_from_param(param: Param): Nim_Node =
             return ident("true")
         else:
             return ident("false")
+    else: # seq
+        return nil
 
 
 proc string_from_param(param: Param): string =
     case param.kind:
     of param_undefined:  return ""
-    of param_seq_string: return ""
-    of param_seq_int:    return ""
-    of param_seq_float:  return ""
     of param_int:        return repr(param.int_value)
     of param_i8:         return repr(param.i8_value)
     of param_i16:        return repr(param.i16_value)
@@ -513,6 +622,8 @@ proc string_from_param(param: Param): string =
             return "true"
         else:
             return "false"
+    else: # seq
+        return ""
 
 
 # Field declaration, parsed from block nodes.
@@ -587,8 +698,9 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ## x:int32
     ## x:int = 20
     ## ```
-    ## You may also use `seq[string]`, `seq[int]`, and `seq[float]` (though
-    ## these may not be initialized to a default value: they must be empty)
+    ## You may also use any `seq` of the above: `seq[string]`, `seq[int]`,
+    ## `seq[float]`, etc. These may not be initialized to a default
+    ## value, however: they must be empty.
     ## ```
     ## args: seq[string]
     ## ```
@@ -626,6 +738,11 @@ macro get_options_and_supplied*(body: untyped): untyped =
     ##  Place on a `seq` field to require that many values be supplied to it.
     ##  For example:
     ##  `position:seq[float] {. len(3) .} # x y z`
+    ##
+    ##  Note that this does not set a limit on the total length of the seq,
+    ##  only on how many values the user must specify.  Using `len` in
+    ##  conjunction with the `allow_repetition` setting, you can accept
+    ##  multiple batches of values (see `normalize.nim` example)
     ##
     ##
     ## *Example:*
@@ -795,48 +912,39 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
     proc can_parse_as(value: string, kind: int): bool =
         case kind
-        of int_param_string:
-            return true
-        of int_param_bool:
-            return false
-        of int_param_int:
-            return int_from_string[int](value)[1]
-        of int_param_i8:
-            return int_from_string[int](value)[1]
-        of int_param_i16:
-            return int_from_string[int](value)[1]
-        of int_param_i32:
-            return int_from_string[int](value)[1]
-        of int_param_i64:
-            return int_from_string[int](value)[1]
-        of int_param_uint:
-            return uint_from_string[int](value)[1]
-        of int_param_u8:
-            return uint_from_string[int](value)[1]
-        of int_param_u16:
-            return uint_from_string[int](value)[1]
-        of int_param_u32:
-            return uint_from_string[int](value)[1]
-        of int_param_u64:
-            return uint_from_string[int](value)[1]
-        of int_param_float:
-            return float_from_string[int](value)[1]
-        of int_param_f32:
-            return float_from_string[int](value)[1]
-        of int_param_f64:
-            return float_from_string[int](value)[1]
-        of int_param_char:
-            return value.len == 1
-        of int_param_undefined:
-            return false
-        of int_param_seq_string:
-            return true
-        of int_param_seq_float:
-            return float_from_string[int](value)[1]
-        of int_param_seq_int:
-            return int_from_string[int](value)[1]
-        else:
-            return false
+        of int_param_undefined:  return false
+        of int_param_string:     return true
+        of int_param_bool:       return false
+        of int_param_int:        return int_from_string[int](value)[1]
+        of int_param_i8:         return int_from_string[int](value)[1]
+        of int_param_i16:        return int_from_string[int](value)[1]
+        of int_param_i32:        return int_from_string[int](value)[1]
+        of int_param_i64:        return int_from_string[int](value)[1]
+        of int_param_uint:       return uint_from_string[int](value)[1]
+        of int_param_u8:         return uint_from_string[int](value)[1]
+        of int_param_u16:        return uint_from_string[int](value)[1]
+        of int_param_u32:        return uint_from_string[int](value)[1]
+        of int_param_u64:        return uint_from_string[int](value)[1]
+        of int_param_float:      return float_from_string[int](value)[1]
+        of int_param_f32:        return float_from_string[int](value)[1]
+        of int_param_f64:        return float_from_string[int](value)[1]
+        of int_param_char:       return value.len == 1
+        of int_param_seq_string: return true
+        of int_param_seq_int:    return int_from_string[int](value)[1]
+        of int_param_seq_i8:     return int_from_string[int](value)[1]
+        of int_param_seq_i16:    return int_from_string[int](value)[1]
+        of int_param_seq_i32:    return int_from_string[int](value)[1]
+        of int_param_seq_i64:    return int_from_string[int](value)[1]
+        of int_param_seq_uint:   return uint_from_string[int](value)[1]
+        of int_param_seq_u8:     return uint_from_string[int](value)[1]
+        of int_param_seq_u16:    return uint_from_string[int](value)[1]
+        of int_param_seq_u32:    return uint_from_string[int](value)[1]
+        of int_param_seq_u64:    return uint_from_string[int](value)[1]
+        of int_param_seq_float:  return float_from_string[int](value)[1]
+        of int_param_seq_f32:    return float_from_string[int](value)[1]
+        of int_param_seq_f64:    return float_from_string[int](value)[1]
+        of int_param_seq_char:   return value.len == 1
+        else:                    return false
 
 
     # Generate code which assigns values to fields at runtime (from supplied command line)
@@ -889,9 +997,12 @@ macro get_options_and_supplied*(body: untyped): untyped =
             is_bare(index_from_name(name))
 
 
+        proc is_seq(kind: int): bool =
+            return kind >= first_seq_int
+
+
         proc is_seq(name: string): bool =
-            let kind = get_param_type(name)
-            return kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float
+            return is_seq(get_param_type(name))
 
 
         template get_prefix(name: string, index = -1): string =
@@ -921,23 +1032,48 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
 
         proc get_seq_len(address: ptr `type_name`, name: string, kind: int): int =
+            template return_length(T) =
+                let field = cast[ptr seq[T]](cast[uint](address) + get_param_offset(name))
+                return field[].len
+
             case kind
-            of `int_param_seq_string`:
-                let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
-                return field[].len
-            of `int_param_seq_int`:
-                let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
-                return field[].len
-            of `int_param_seq_float`:
-                let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
-                return field[].len
-            else:
-                return 0
+            of `int_param_seq_int`:    return_length int
+            of `int_param_seq_i8`:     return_length int8
+            of `int_param_seq_i16`:    return_length int16
+            of `int_param_seq_i32`:    return_length int32
+            of `int_param_seq_i64`:    return_length int64
+            of `int_param_seq_uint`:   return_length uint
+            of `int_param_seq_u8`:     return_length uint8
+            of `int_param_seq_u16`:    return_length uint16
+            of `int_param_seq_u32`:    return_length uint32
+            of `int_param_seq_u64`:    return_length uint64
+            of `int_param_seq_float`:  return_length float
+            of `int_param_seq_f32`:    return_length float32
+            of `int_param_seq_f64`:    return_length float64
+            of `int_param_seq_char`:   return_length char
+            of `int_param_seq_string`: return_length string
+            else:                      return 0
 
 
         proc set_value(address: ptr `type_name`, name: string, value: string = ""): bool =
+            template parse_and_set(call, T) =
+                let (parsed_value, success) = call[T](value)
+                if success:
+                    let field = cast[ptr T](cast[uint](address) + get_param_offset(name))
+                    field[] = parsed_value
+                return success
+
+            template parse_and_add(call, T) =
+                let (parsed_value, success) = call[T](value)
+                if success:
+                    let field = cast[ptr seq[T]](cast[uint](address) + get_param_offset(name))
+                    field[].add parsed_value
+                return success
+
             let kind = get_param_type(name)
             case kind
+            of `int_param_undefined`:
+                return false
             of `int_param_string`:
                 let field = cast[ptr string](cast[uint](address) + get_param_offset(name))
                 field[] = value
@@ -946,109 +1082,47 @@ macro get_options_and_supplied*(body: untyped): untyped =
                 let field = cast[ptr bool](cast[uint](address) + get_param_offset(name))
                 field[] = not field[]
                 return true
-            of `int_param_int`:
-                let (parsed_value, success) = int_from_string[int](value)
-                if success:
-                    let field = cast[ptr int](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_i8`:
-                let (parsed_value, success) = int_from_string[int8](value)
-                if success:
-                    let field = cast[ptr int8](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_i16`:
-                let (parsed_value, success) = int_from_string[int16](value)
-                if success:
-                    let field = cast[ptr int16](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_i32`:
-                let (parsed_value, success) = int_from_string[int32](value)
-                if success:
-                    let field = cast[ptr int32](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_i64`:
-                let (parsed_value, success) = int_from_string[int64](value)
-                if success:
-                    let field = cast[ptr int64](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_uint`:
-                let (parsed_value, success) = uint_from_string[uint](value)
-                if success:
-                    let field = cast[ptr uint](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_u8`:
-                let (parsed_value, success) = uint_from_string[uint8](value)
-                if success:
-                    let field = cast[ptr uint8](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_u16`:
-                let (parsed_value, success) = uint_from_string[uint16](value)
-                if success:
-                    let field = cast[ptr uint16](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_u32`:
-                let (parsed_value, success) = uint_from_string[uint32](value)
-                if success:
-                    let field = cast[ptr uint32](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_u64`:
-                let (parsed_value, success) = uint_from_string[uint64](value)
-                if success:
-                    let field = cast[ptr uint64](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_float`:
-                let (parsed_value, success) = float_from_string[float](value)
-                if success:
-                    let field = cast[ptr float](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_f32`:
-                let (parsed_value, success) = float_from_string[float32](value)
-                if success:
-                    let field = cast[ptr float32](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
-            of `int_param_f64`:
-                let (parsed_value, success) = float_from_string[float64](value)
-                if success:
-                    let field = cast[ptr float64](cast[uint](address) + get_param_offset(name))
-                    field[] = parsed_value
-                return success
             of `int_param_char`:
                 if value.len != 1: return false
                 let field = cast[ptr char](cast[uint](address) + get_param_offset(name))
                 field[] = value[0]
                 return true
-            of `int_param_undefined`:
-                return false
             of `int_param_seq_string`:
                 let field = cast[ptr seq[string]](cast[uint](address) + get_param_offset(name))
                 field[].add value
                 return true
-            of `int_param_seq_int`:
-                let (parsed_value, success) = int_from_string[int](value)
-                if success:
-                    let field = cast[ptr seq[int]](cast[uint](address) + get_param_offset(name))
-                    field[].add parsed_value
-                return success
-            of `int_param_seq_float`:
-                let (parsed_value, success) = float_from_string[float](value)
-                if success:
-                    let field = cast[ptr seq[float]](cast[uint](address) + get_param_offset(name))
-                    field[].add parsed_value
-                return success
-            else:
-                return false
+            of `int_param_seq_char`:
+                if value.len != 1: return false
+                let field = cast[ptr seq[char]](cast[uint](address) + get_param_offset(name))
+                field[].add value[0]
+                return true
+            of `int_param_int`:       parse_and_set int_from_string, int
+            of `int_param_i8`:        parse_and_set int_from_string, int8
+            of `int_param_i16`:       parse_and_set int_from_string, int16
+            of `int_param_i32`:       parse_and_set int_from_string, int32
+            of `int_param_i64`:       parse_and_set int_from_string, int64
+            of `int_param_uint`:      parse_and_set int_from_string, uint
+            of `int_param_u8`:        parse_and_set int_from_string, uint8
+            of `int_param_u16`:       parse_and_set int_from_string, uint16
+            of `int_param_u32`:       parse_and_set int_from_string, uint32
+            of `int_param_u64`:       parse_and_set int_from_string, uint64
+            of `int_param_float`:     parse_and_set float_from_string, float
+            of `int_param_f32`:       parse_and_set float_from_string, float32
+            of `int_param_f64`:       parse_and_set float_from_string, float64
+            of `int_param_seq_int`:   parse_and_add int_from_string, int
+            of `int_param_seq_i8`:    parse_and_add int_from_string, int8
+            of `int_param_seq_i16`:   parse_and_add int_from_string, int16
+            of `int_param_seq_i32`:   parse_and_add int_from_string, int32
+            of `int_param_seq_i64`:   parse_and_add int_from_string, int64
+            of `int_param_seq_uint`:  parse_and_add int_from_string, uint
+            of `int_param_seq_u8`:    parse_and_add int_from_string, uint8
+            of `int_param_seq_u16`:   parse_and_add int_from_string, uint16
+            of `int_param_seq_u32`:   parse_and_add int_from_string, uint32
+            of `int_param_seq_u64`:   parse_and_add int_from_string, uint64
+            of `int_param_seq_float`: parse_and_add float_from_string, float
+            of `int_param_seq_f32`:   parse_and_add float_from_string, float32
+            of `int_param_seq_f64`:   parse_and_add float_from_string, float64
+            else:                     return false
 
 
         # Automated help message for `-?`, `-h`, `--help`
@@ -1248,7 +1322,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             if writing_to_seq and desired_seq_length != 0 and current_seq_length >= desired_seq_length:
                                 awaiting_value = false
                         else:
-                            parse_error("Could not parse value for: " & word)
+                            parse_error("'" & word & "' is not a valid value for '" & awaiting_value_for & "'")
                     else:
                         var ok = false
                         while current_bare_index < `bare_indexes`.len:
@@ -1256,7 +1330,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             let kind = `field_type`[index]
                             writing_bare_seq = false
                             if can_parse_as(word, kind):
-                                if kind == int_param_seq_string or kind == int_param_seq_int or kind == int_param_seq_float:
+                                if is_seq(kind):
                                     if `field_length`[index] == 0 or get_seq_len(addr options, `field_names`[index], kind) < `field_length`[index]:
                                         writing_bare_seq = true
                                         ok = true
@@ -1271,9 +1345,9 @@ macro get_options_and_supplied*(body: untyped): untyped =
                         if set_value(addr options, bare_name, word):
                             set_supplied(addr supplied, bare_name)
                         else:
-                            parse_error("Could not parse value for: " & word)
+                            parse_error("'" & word & "' is not a valid value for '" & awaiting_value_for & "'")
                         let kind = `field_type`[`bare_indexes`[current_bare_index]]
-                        if kind != int_param_seq_string and kind != int_param_seq_int and kind != int_param_seq_float:
+                        if not is_seq(kind):
                             current_bare_index += 1
 
             if awaiting_value:
@@ -1463,8 +1537,9 @@ macro get_options*(body: untyped): untyped =
     ## x:int32
     ## x:int = 20
     ## ```
-    ## You may also use `seq[string]`, `seq[int]`, and `seq[float]` (though
-    ## these may not be initialized to a default value: they must be empty)
+    ## You may also use any `seq` of the above: `seq[string]`, `seq[int]`,
+    ## `seq[float]`, etc. These may not be initialized to a default
+    ## value, however: they must be empty.
     ## ```
     ## args: seq[string]
     ## ```
@@ -1503,6 +1578,11 @@ macro get_options*(body: untyped): untyped =
     ##  For example:
     ##  `position:seq[float] {. len(3) .} # x y z`
     ##
+    ##  Note that this does not set a limit on the total length of the seq,
+    ##  only on how many values the user must specify.  Using `len` in
+    ##  conjunction with the `allow_repetition` setting, you can accept
+    ##  multiple batches of values (see `normalize.nim` example)
+    ##
     ##
     ## *Example:*
     ## ```
@@ -1528,7 +1608,7 @@ when is_main_module:
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
     help_text "Nim module v" & version
 
-    # vscode-nim arguments: --namu Bob B 10 20 30
+    # vscode-nim arguments: --namu Bob B 10 20 30 --letters a b c d
 
     let (options, is_set) = get_options_and_supplied:
         name = "Default Name" {. alias("n", "namu") .}
@@ -1541,7 +1621,8 @@ when is_main_module:
         small:float = 2.2
         active:bool
         flat:uint = 2
-        position:seq[int] {. len(3), bare .}
+        letters: seq[char]
+        position:seq[int8] {. len(3), bare .}
         args: seq[string]
 
     proc prettify[T](title: string, data: T, new_section = false) =

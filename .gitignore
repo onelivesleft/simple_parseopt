@@ -3,4 +3,3 @@ nimcache/
 scratch.*
 simple_parseopt.exe
 *.exe
-!bin/make.exe
