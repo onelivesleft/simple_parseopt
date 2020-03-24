@@ -60,7 +60,7 @@ type Options = object
     flat:uint
     arguments:seq[string]
 
-options = Options(name: "Default Name", active: false, letter: 'a', age: 1, big: 1.1, small: 2.2, flat: 2)
+options = Options(name: "Default Name", active: false, letter_one: 'a', age: 1, big: 1.1, small: 2.2, flat: 2)
 
 parse_command_line_into(options)
 ```
