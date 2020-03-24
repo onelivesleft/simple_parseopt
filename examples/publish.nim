@@ -1,4 +1,5 @@
-import simple_parseopt, os, strutils, osproc
+import os, strutils, osproc
+import "../src/simple_parseopt"  # when installed you need only `import simple_parseopt`
 
 help_text(
     "Increase version and publish to github + nimble.",

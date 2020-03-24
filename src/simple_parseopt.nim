@@ -26,7 +26,6 @@ const
     field_alias_names_label    = "simple_parseopt_field_alias_names"
     field_alias_indexes_label  = "simple_parseopt_field_alias_indexes"
     proc_label                 = "simple_parseopt_parse"
-    executable_label           = "simple_parseopt_exe_name"
 
 
 # Config variables, exposed via succeeding procs.
@@ -897,7 +896,6 @@ macro get_options_and_supplied*(body: untyped): untyped =
     let field_length          = ident(field_lengths_label)
     let alias_names           = ident(field_alias_names_label)
     let alias_index           = ident(field_alias_indexes_label)
-    let exe_name              = ident(executable_label)
 
 
     proc int_from_string[T](s: string): (T, bool) =
@@ -1145,7 +1143,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
             print ""
 
             proc full_name(index: int): string =
-                var name = `field_names`[index]
+                var name = `field_names`[index].replace("_", "-")
                 if `alias_index`.contains(index):
                     for i, alias_index in `alias_index`.pairs:
                         if alias_index == index:
@@ -1153,12 +1151,27 @@ macro get_options_and_supplied*(body: untyped): untyped =
                             name = name & ", " & get_prefix(alias, index) & alias
                 return name
 
+            proc extract_exe(path:string): string =
+                var startchar = len(path)
+                var endchar = -1
+                while startchar > 0:
+                    startchar -= 1;
+                    if "/\\:".find($path[startchar]) >= 0:
+                        startchar += 1
+                        break
+                    elif path[startchar] == '.' and endchar == -1:
+                        endchar = startchar
+                if endchar == -1:
+                    return path[startchar ..< ^0]
+                else:
+                    return path[startchar ..< endchar]
+
             var added_options = false
             var usage:string
             if program_name != "":
                 usage = program_name
             else:
-                usage = `exe_name`
+                usage = extract_exe(get_app_filename())
             for i, name in `field_names`:
                 if is_bare(i):
                     if `required_indexes`.contains(i):
@@ -1186,18 +1199,19 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
             for i, name in `field_names`:
                 if not is_bare(i): continue
+                let display_name = name.replace("_", "-")
                 if not printed_header:
                     print "Arguments:"
                     print ""
                     printed_header = true
                 let postfix = `field_descriptions`[i]
                 if postfix == "":
-                    print " " & name
+                    print " " & display_name
                 else:
                     var spacer = ""
-                    while name.len + spacer.len < letters:
+                    while display_name.len + spacer.len < letters:
                         spacer = spacer & " "
-                    print " " & name & spacer & "    " & postfix
+                    print " " & display_name & spacer & "    " & postfix
             if printed_header: print ""
 
             printed_header = false
@@ -1296,6 +1310,8 @@ macro get_options_and_supplied*(body: untyped): untyped =
                                 words.insert "-" & letter, next_word_index + i
                             no_await_value_check_until = next_word_index + name.len + 1
                             continue
+
+                    name = name.replace("-", "_")
 
                     if name in `alias_names`:
                         let index = `alias_names`.find(name)
@@ -1504,13 +1520,6 @@ macro get_options_and_supplied*(body: untyped): untyped =
 
 
     var alias_list:seq[string] = @[]
-    let exe_filename = current_source_path().extract_filename.change_file_ext("")
-    info_node.add nnk_ident_defs.new_tree(
-        ident(executable_label),
-        new_empty_node(),
-        new_str_lit_node(exe_filename)
-    )
-
 
     for i, name in params_in_order.pairs:
         let param = params[name]
@@ -1649,7 +1658,7 @@ when is_main_module:
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
     help_text "Nim module v" & version
 
-    # vscode-nim arguments: --namu Bob B --position 10 20 10  -a -A --letters a b c d
+    # vscode-nim arguments: -? --namu Bob B --position 10 20 10  -a -A --letter-test a b c d
 
     let (options, is_set) = get_options_and_supplied:
         name = "Default Name" {. alias("n", "namu") .}
@@ -1662,7 +1671,7 @@ when is_main_module:
         small:float = 2.2
         active:bool
         flat:uint = 2
-        letters: seq[char]
+        letter_test: seq[char]
         position:seq[int8] {. len(3) .}
         args: seq[string]
         a: bool
@@ -1670,3 +1679,4 @@ when is_main_module:
 
     prettify("Options", options, true)
     prettify("Supplied", is_set)
+    echo options.letterTest

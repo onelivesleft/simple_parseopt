@@ -16,7 +16,7 @@ At its simplest, declare a block like this:
 let options = get_options:
     name          = "Default Name"
     active        = false
-    letter        = 'a'
+    letter_one    = 'a'
     age           = 1
     hello:string
     big:float64   = 1.1
@@ -32,10 +32,10 @@ Notice it follows the same syntax as a `var` block.
 In the example `foo.nim` above, the variable `options` will be set to an `object` with fields as described in the `get_options` block.  Each field will also be set up as a command-line parameter for the user running the program to use; bools will toggle, while other fields will take a value argument.
 
 ```bash
-foo -name "J. Random" -active -big 1011121.121498
+foo -name "J. Random" -active -big 1011121.121498 -letter-one z
 ```
 
-This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, and set the `big` `float64` to `1011121.121498`
+This will set the `name` `string` to `"J. Random"`, toggle the `active` `bool` to `true`, set the `big` `float64` to `1011121.121498`, and set `letter_one` to `z` (notice the underscore in the field becomes a hyphen at the command line).
 
 You may use any basic type: `bool`, `string`, `int`, `float`, `uint`, `char`, and the sized variants thereof, as well as `seq`s of those types: `seq[string]`, `seq[int]`, `seq[float]`, etc. (You may not use `seq[bool]`)
 
@@ -50,7 +50,7 @@ The code above will translate into the equivalent of:
 type Options = object
     name:string
     active:bool
-    letter:char
+    letter_one:char
     age:int
     hello:string
     big:float64
@@ -98,7 +98,7 @@ All of these will work:
 
 ```bash
 foo -name "Joe Random" -active
-foo /active /letter Z /flat 100
+foo /active /flat 100
 foo /hello Greetings! -big 100 /small 20
 ```
 

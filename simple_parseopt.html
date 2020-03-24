@@ -887,7 +887,7 @@ function main() {
 <span class="Keyword">let</span> <span class="Identifier">options</span> <span class="Operator">=</span> <span class="Identifier">get_options</span><span class="Punctuation">:</span>
     <span class="Identifier">name</span>          <span class="Operator">=</span> <span class="StringLit">&quot;Default Name&quot;</span>
     <span class="Identifier">active</span>        <span class="Operator">=</span> <span class="Identifier">false</span>
-    <span class="Identifier">letter</span>        <span class="Operator">=</span> <span class="CharLit">'a'</span>
+    <span class="Identifier">letter_one</span>    <span class="Operator">=</span> <span class="CharLit">'a'</span>
     <span class="Identifier">age</span>           <span class="Operator">=</span> <span class="DecNumber">1</span>
     <span class="Identifier">hello</span><span class="Punctuation">:</span><span class="Identifier">string</span>
     <span class="Identifier">big</span><span class="Punctuation">:</span><span class="Identifier">float64</span>   <span class="Operator">=</span> <span class="FloatNumber">1.1</span>
@@ -900,9 +900,9 @@ function main() {
 <p>Notice it follows the same syntax as a <tt class="docutils literal"><span class="pre">var</span></tt> block.</p>
 <p>In the example <tt class="docutils literal"><span class="pre">foo.nim</span></tt> above, the variable <tt class="docutils literal"><span class="pre">options</span></tt> will be set to an <tt class="docutils literal"><span class="pre">object</span></tt> with fields as described in the <tt class="docutils literal"><span class="pre">get_options</span></tt> block.  Each field will also be set up as a command-line parameter for the user running the program to use; bools will toggle, while other fields will take a value argument.</p>
 <p><pre class="listing">
-foo -name &quot;J. Random&quot; -active -big 1011121.121498
+foo -name &quot;J. Random&quot; -active -big 1011121.121498 -letter-one z
 </pre></p>
-<p>This will set the <tt class="docutils literal"><span class="pre">name</span></tt> <tt class="docutils literal"><span class="pre">string</span></tt> to <tt class="docutils literal"><span class="pre">&quot;J. Random&quot;</span></tt>, toggle the <tt class="docutils literal"><span class="pre">active</span></tt> <tt class="docutils literal"><span class="pre">bool</span></tt> to <tt class="docutils literal"><span class="pre">true</span></tt>, and set the <tt class="docutils literal"><span class="pre">big</span></tt> <tt class="docutils literal"><span class="pre">float64</span></tt> to <tt class="docutils literal"><span class="pre">1011121.121498</span></tt></p>
+<p>This will set the <tt class="docutils literal"><span class="pre">name</span></tt> <tt class="docutils literal"><span class="pre">string</span></tt> to <tt class="docutils literal"><span class="pre">&quot;J. Random&quot;</span></tt>, toggle the <tt class="docutils literal"><span class="pre">active</span></tt> <tt class="docutils literal"><span class="pre">bool</span></tt> to <tt class="docutils literal"><span class="pre">true</span></tt>, set the <tt class="docutils literal"><span class="pre">big</span></tt> <tt class="docutils literal"><span class="pre">float64</span></tt> to <tt class="docutils literal"><span class="pre">1011121.121498</span></tt>, and set <tt class="docutils literal"><span class="pre">letter_one</span></tt> to <tt class="docutils literal"><span class="pre">z</span></tt> (notice the underscore in the field becomes a hyphen at the command line).</p>
 <p>You may use any basic type: <tt class="docutils literal"><span class="pre">bool</span></tt>, <tt class="docutils literal"><span class="pre">string</span></tt>, <tt class="docutils literal"><span class="pre">int</span></tt>, <tt class="docutils literal"><span class="pre">float</span></tt>, <tt class="docutils literal"><span class="pre">uint</span></tt>, <tt class="docutils literal"><span class="pre">char</span></tt>, and the sized variants thereof, as well as <tt class="docutils literal"><span class="pre">seq`s of those types: `seq[string]</span></tt>, <tt class="docutils literal"><span class="pre">seq[int]</span></tt>, <tt class="docutils literal"><span class="pre">seq[float]</span></tt>, etc. (You may not use <tt class="docutils literal"><span class="pre">seq[bool]</span></tt>)</p>
 <p>The last <tt class="docutils literal"><span class="pre">seq[string]</span></tt> will automatically be used to store any arguments set without a parameter name (you can disable this behaviour with <tt class="docutils literal"><span class="pre">no_implicit_bare()</span></tt>)</p>
 <p><em>Details</em></p>
@@ -910,7 +910,7 @@ foo -name &quot;J. Random&quot; -active -big 1011121.121498
 <p><pre class="listing"><span class="Keyword">type</span> <span class="Identifier">Options</span> <span class="Operator">=</span> <span class="Keyword">object</span>
     <span class="Identifier">name</span><span class="Punctuation">:</span><span class="Identifier">string</span>
     <span class="Identifier">active</span><span class="Punctuation">:</span><span class="Identifier">bool</span>
-    <span class="Identifier">letter</span><span class="Punctuation">:</span><span class="Identifier">char</span>
+    <span class="Identifier">letter_one</span><span class="Punctuation">:</span><span class="Identifier">char</span>
     <span class="Identifier">age</span><span class="Punctuation">:</span><span class="Identifier">int</span>
     <span class="Identifier">hello</span><span class="Punctuation">:</span><span class="Identifier">string</span>
     <span class="Identifier">big</span><span class="Punctuation">:</span><span class="Identifier">float64</span>
@@ -946,7 +946,7 @@ foo -name &quot;J. Random&quot; -active -big 1011121.121498
 <p>All of these will work:</p>
 <p><pre class="listing">
 foo -name &quot;Joe Random&quot; -active
-foo /active /letter Z /flat 100
+foo /active /flat 100
 foo /hello Greetings! -big 100 /small 20
 </pre></p>
 
@@ -1028,9 +1028,9 @@ foo /hello Greetings! -big 100 /small 20
 
 Disable parameter being identified by prefixing with <tt class="docutils literal"><span class="pre">-</span></tt>
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L96"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L95"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L96" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L95" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="no_slash"></a>
@@ -1039,9 +1039,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Disable parameter being identified by prefixing with <tt class="docutils literal"><span class="pre">/</span></tt>
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L100"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L99"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L100" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L99" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="dash_dash_parameters"></a>
@@ -1052,9 +1052,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p>Single-character parameters may then be entered grouped together under one <tt class="docutils literal"><span class="pre">-</span></tt></p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L104"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L103"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L104" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L103" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="dash_dash_separator"></a>
@@ -1063,9 +1063,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 <tt class="docutils literal"><span class="pre">--</span></tt> on its own in the command line will disable parameter names on every argument after it; they will all be treated as bare.
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L112"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L111"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L112" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L111" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="value_after_colon"></a>
@@ -1077,9 +1077,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p>Note this will not play nicely with quoted string values.</p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L117"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L116"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L117" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L116" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="value_after_equals"></a>
@@ -1091,9 +1091,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p>Note this will not play nicely with quoted string values.</p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L125"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L124"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L125" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L124" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="allow_repetition"></a>
@@ -1102,9 +1102,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Allow the user to specify the same parameter more than once without reporting an error.
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L133"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L132"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L133" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L132" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="allow_errors"></a>
@@ -1113,9 +1113,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Allow program execution to continue after erroneous input.
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L138"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L137"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L138" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L137" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="no_implicit_bare"></a>
@@ -1124,9 +1124,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Do not automatically use the last <tt class="docutils literal"><span class="pre">seq[string]</span></tt> parameter to gather any bare parameters the user enters (instead they become erroneous)
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L142"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L141"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L142" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L141" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="can_name_bare"></a>
@@ -1135,9 +1135,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Allows user to set bare parameters by name.
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L147"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L146"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L147" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L146" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="manual_help"></a>
@@ -1146,9 +1146,9 @@ class="link-seesrc" target="_blank">Source</a>
 
 Disable automatic generation of help message when user enters <tt class="docutils literal"><span class="pre">-?</span></tt>, <tt class="docutils literal"><span class="pre">-h</span></tt> or <tt class="docutils literal"><span class="pre">-help</span></tt> (when you do not include them as parameters)
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L151"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L150"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L151" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L150" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="command_name,string"></a>
@@ -1159,9 +1159,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p>Note: <tt class="docutils literal"><span class="pre">command_name</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L157"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L156"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L157" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L156" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="help_text,string,string"></a>
@@ -1173,9 +1173,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p>Note: <tt class="docutils literal"><span class="pre">help_text</span></tt> may not be included in a <tt class="docutils literal"><span class="pre">config:</span></tt> chain</p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L164"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L163"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L164" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L163" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -1192,9 +1192,9 @@ class="link-seesrc" target="_blank">Source</a>
 <p><tt class="docutils literal"><span class="pre">simple_parseopt.config: no_slash.dash_dash_parameters.allow_repetition</span></tt> </p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L51"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L50"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L51" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L50" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="get_options_and_supplied.m,untyped"></a>
@@ -1246,9 +1246,9 @@ if options.age &lt; 13 or options.age &gt; 19:
 </pre></p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L692"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L691"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L692" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L691" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 <a id="get_options.m,untyped"></a>
@@ -1299,9 +1299,9 @@ if options.age &lt; 13 or options.age &gt; 19:
 </pre></p>
 
 &nbsp;&nbsp;<a
-href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.8/src/simple_parseopt.nim#L1538"
+href="https://github.com/onelivesleft/simple_parseopt/tree/v1.0.9/src/simple_parseopt.nim#L1547"
 class="link-seesrc" target="_blank">Source</a>
-<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L1538" class="link-seesrc" target="_blank" >Edit</a>
+<a href="https://github.com/onelivesleft/simple_parseopt/edit/devel/src/simple_parseopt.nim#L1547" class="link-seesrc" target="_blank" >Edit</a>
 
 </dd>
 
@@ -1314,7 +1314,7 @@ class="link-seesrc" target="_blank">Source</a>
       <div class="twelve-columns footer">
         <span class="nim-sprite"></span>
         <br/>
-        <small>Made with Nim. Generated: 2019-12-03 14:47:14 UTC</small>
+        <small>Made with Nim. Generated: 2020-03-24 14:15:42 UTC</small>
       </div>
     </div>
   </div>

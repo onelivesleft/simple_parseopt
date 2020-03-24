@@ -1,4 +1,4 @@
-import simple_parseopt
+import "../src/simple_parseopt"  # when installed you need only `import simple_parseopt`
 
 simple_parseopt.config: allow_repetition
 
@@ -52,3 +52,4 @@ for point in points:
 
 
 # example: normalize.exe -p 10 -20 10 -p 30 10 -10 -p 5 7 9
+# vscode-nim arguments: -?

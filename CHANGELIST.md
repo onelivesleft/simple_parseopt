@@ -1,3 +1,10 @@
+# v1.0.9
+
+* Removed case-insensivity
+* Added `_` in field translating to `-` in parameter
+* Fixed command name in help text
+
+
 # v1.0.8
 
 * Fixed numeric parameters being confused for parameter names

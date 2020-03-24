@@ -1,4 +1,5 @@
-import simple_parseopt, os, strutils, glob
+import os, strutils, glob
+import "../src/simple_parseopt"  # when installed you need only `import simple_parseopt`
 
 const TEMP_FILE = os.join_path("src", "header.md")
 
