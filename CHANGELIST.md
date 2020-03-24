@@ -1,3 +1,8 @@
+# v1.1.0
+
+* Increment version because of case insensitivity change.
+
+
 # v1.0.10
 
 * Fix error in readme
