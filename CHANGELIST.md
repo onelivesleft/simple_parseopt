@@ -1,3 +1,8 @@
+# v1.0.10
+
+* Fix error in readme
+
+
 # v1.0.9
 
 * Removed case-insensivity
