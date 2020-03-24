@@ -346,7 +346,7 @@ proc int_param_from_param(kind: Param_Kind): int =
 
 
 proc param_from_nodes(name_node: Nim_Node, kind: Param_Kind, value_node: Nim_Node, pragma_node: Nim_Node): (Param, string) =
-    let name = name_node.str_val.to_lower
+    let name = name_node.str_val
     var param: Param
     if value_node == nil:
         case kind:
@@ -1286,7 +1286,7 @@ macro get_options_and_supplied*(body: untyped): untyped =
                         words.insert(word[c + 1 ..< ^0], next_word_index + 1)
                         continue
 
-                    var name = word[1 ..< ^0].to_lower
+                    var name = word[1 ..< ^0]
 
                     if use_double_dash:
                         if name.starts_with("-"):
@@ -1649,7 +1649,7 @@ when is_main_module:
     config: no_slash.dash_dash_parameters.value_after_colon.value_after_equals
     help_text "Nim module v" & version
 
-    # vscode-nim arguments: --namu Bob B --position 10 20 10 -30 --letters a b c d
+    # vscode-nim arguments: --namu Bob B --position 10 20 10  -a -A --letters a b c d
 
     let (options, is_set) = get_options_and_supplied:
         name = "Default Name" {. alias("n", "namu") .}
@@ -1665,6 +1665,8 @@ when is_main_module:
         letters: seq[char]
         position:seq[int8] {. len(3) .}
         args: seq[string]
+        a: bool
+        A: bool
 
     prettify("Options", options, true)
     prettify("Supplied", is_set)
