@@ -1,3 +1,8 @@
+# v1.1.1
+
+* Fix not understanding negative default values
+
+
 # v1.1.0
 
 * Increment version because of case insensitivity change.

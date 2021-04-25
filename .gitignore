@@ -1,4 +1,5 @@
 nimcache/
+test/
 *.tmp
 scratch.*
 simple_parseopt.exe
